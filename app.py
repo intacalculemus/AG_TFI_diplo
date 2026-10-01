@@ -13,6 +13,7 @@ from folium.raster_layers import ImageOverlay
 from streamlit_folium import st_folium
 import json
 import os
+import math
 from pathlib import Path
 from shapely.geometry import shape
 
@@ -210,13 +211,16 @@ with col_left:
                 if new_bbox != st.session_state.current_bbox or geom != st.session_state.drawn_geometry:
                     st.session_state.current_bbox = new_bbox
                     st.session_state.drawn_geometry = geom
-                    # Actualizar centro según el nuevo dibujo
+                    delta_deg = max(maxx - minx, maxy - miny)
                     st.session_state.map_center = [
                         round((miny + maxy) / 2.0, 5),
                         round((minx + maxx) / 2.0, 5)
                     ]
+                    if delta_deg > 0:
+                        st.session_state.map_zoom = max(8, min(15, round(math.log2(360.0 / delta_deg) - 1)))
+                    # Limpiar clasificación previa y encuadre forzado para que el visor no salte a la posición anterior
                     st.session_state.classification_result = None
-                    st.rerun()
+                    st.session_state.fit_bounds_target = None
             except Exception as e:
                 st.warning(f"Error procesando geometría: {e}")
 

@@ -87,22 +87,33 @@ with col_left:
     )
 
     # Controles de Encuadre y Zoom del Visor
-    col_zoom1, col_zoom2 = st.columns([1.4, 1.0])
-    btn_fit_area = col_zoom1.button("🎯 Centrar y Maximizar Área", use_container_width=True)
-    btn_reset_mar = col_zoom2.button("🌊 Reset: Mar Chiquita", use_container_width=True)
+    col_zoom1, col_zoom2, col_zoom3 = st.columns([1.2, 1.2, 1.0])
+    btn_fit_area = col_zoom1.button("🎯 Centrar Área", use_container_width=True)
+    btn_clear_map = col_zoom2.button("🗑️ Limpiar Visor", use_container_width=True)
+    btn_reset_mar = col_zoom3.button("🌊 Reset: Inicio", use_container_width=True)
 
     if btn_fit_area:
         st.session_state.map_version += 1
         if st.session_state.classification_result and st.session_state.classification_result.get("folium_bounds"):
             target_b = st.session_state.classification_result["folium_bounds"]
-        else:
+        elif st.session_state.current_bbox:
             bbox = st.session_state.current_bbox
             target_b = [[bbox[1], bbox[0]], [bbox[3], bbox[2]]]
+        else:
+            target_b = [[DEFAULT_BBOX[1], DEFAULT_BBOX[0]], [DEFAULT_BBOX[3], DEFAULT_BBOX[2]]]
         st.session_state.fit_bounds_target = target_b
         st.session_state.map_center = [
             round((target_b[0][0] + target_b[1][0]) / 2.0, 5),
             round((target_b[0][1] + target_b[1][1]) / 2.0, 5)
         ]
+        st.rerun()
+
+    if btn_clear_map:
+        # Borra el rectángulo y el ráster clasificado conservando la vista geográfica actual
+        st.session_state.map_version += 1
+        st.session_state.drawn_geometry = None
+        st.session_state.classification_result = None
+        st.session_state.fit_bounds_target = None
         st.rerun()
 
     if btn_reset_mar:
@@ -128,33 +139,20 @@ with col_left:
     if st.session_state.fit_bounds_target:
         m.fit_bounds(st.session_state.fit_bounds_target)
 
-    # Renderizar el rectángulo delimitado activo para clasificación
-    active_geom = st.session_state.drawn_geometry
-    if not active_geom:
-        minx, miny, maxx, maxy = st.session_state.current_bbox
-        active_geom = {
-            "type": "Polygon",
-            "coordinates": [[
-                [minx, miny],
-                [maxx, miny],
-                [maxx, maxy],
-                [minx, maxy],
-                [minx, miny]
-            ]]
-        }
-
-    folium.GeoJson(
-        active_geom,
-        name="📍 Rectángulo Delimitado",
-        style_function=lambda x: {
-            "color": "#e53935",
-            "weight": 2.5,
-            "fillColor": "#e53935",
-            "fillOpacity": 0.15,
-            "dashArray": "5, 5"
-        },
-        tooltip="Área rectangular activa para clasificación"
-    ).add_to(m)
+    # Renderizar el rectángulo delimitado activo únicamente si hay una geometría activa
+    if st.session_state.drawn_geometry:
+        folium.GeoJson(
+            st.session_state.drawn_geometry,
+            name="📍 Rectángulo Delimitado",
+            style_function=lambda x: {
+                "color": "#e53935",
+                "weight": 2.5,
+                "fillColor": "#e53935",
+                "fillOpacity": 0.15,
+                "dashArray": "5, 5"
+            },
+            tooltip="Área rectangular activa para clasificación"
+        ).add_to(m)
 
     # Si hay una clasificación previa con overlay generado, superponerla en el mapa
     if st.session_state.classification_result:
@@ -174,7 +172,7 @@ with col_left:
                 zindex=10
             ).add_to(m)
 
-    # Herramienta de dibujo (Draw) - Solo Rectángulo
+    # Herramienta de dibujo (Draw) - Solo Rectángulo con soporte de edición y borrado (papelera)
     draw = Draw(
         export=True,
         filename="area_seleccionada.geojson",
@@ -186,25 +184,40 @@ with col_left:
             "marker": False,
             "polygon": False,
             "rectangle": True
+        },
+        edit_options={
+            "edit": True,
+            "remove": True
         }
     )
     draw.add_to(m)
     folium.LayerControl(position="topright", collapsed=True).add_to(m)
 
-    # Configurar returned_objects=['last_active_drawing'] y key dinámica con map_version
+    # Configurar returned_objects=['last_active_drawing', 'all_drawings'] y key dinámica
     map_output = st_folium(
         m, 
         width="100%", 
         height=420, 
-        returned_objects=["last_active_drawing"],
+        returned_objects=["last_active_drawing", "all_drawings"],
         key=f"main_map_{st.session_state.map_version}"
     )
 
-    # Extraer Bounding Box y Geometría únicamente cuando el usuario realiza un nuevo dibujo
-    if map_output and map_output.get("last_active_drawing"):
-        drawing = map_output["last_active_drawing"]
-        geom = drawing.get("geometry")
-        if geom:
+    # Procesar eventos del mapa: dibujo nuevo o borrado con la papelera
+    if map_output:
+        all_drawings = map_output.get("all_drawings")
+        last_drawing = map_output.get("last_active_drawing")
+
+        # CASO A: El usuario hizo clic en la papelera y eliminó los dibujos en el mapa
+        if all_drawings is not None and len(all_drawings) == 0 and (st.session_state.drawn_geometry is not None or st.session_state.classification_result is not None):
+            st.session_state.drawn_geometry = None
+            st.session_state.classification_result = None
+            st.session_state.fit_bounds_target = None
+            st.session_state.map_version += 1
+            st.rerun()
+
+        # CASO B: El usuario realizó un nuevo dibujo de rectángulo
+        elif last_drawing and last_drawing.get("geometry"):
+            geom = last_drawing.get("geometry")
             try:
                 poly = shape(geom)
                 minx, miny, maxx, maxy = poly.bounds
@@ -225,38 +238,52 @@ with col_left:
             except Exception as e:
                 st.warning(f"Error procesando geometría: {e}")
 
-    # Consultar ubicación administrativa oficial para el BBox activo
-    admin_info = cached_admin_location(tuple(st.session_state.current_bbox))
-    loc_text = admin_info.get("texto_formateado", "Argentina")
-    fuente_text = admin_info.get("fuente", "IGN Georef")
+    # Consultar ubicación administrativa oficial y métricas si hay geometría activa
+    has_selection = st.session_state.drawn_geometry is not None
+    if has_selection:
+        admin_info = cached_admin_location(tuple(st.session_state.current_bbox))
+        loc_text = admin_info.get("texto_formateado", "Argentina")
+        fuente_text = admin_info.get("fuente", "IGN Georef")
 
-    # Estimación en tiempo real de dimensiones, cantidad de píxeles (10m) y superficie
-    dim_info = estimate_bbox_dimensions(st.session_state.current_bbox)
-    px_total_str = f"{dim_info['total_pixeles']:,}"
-    ha_total_str = f"{dim_info['superficie_ha']:,.1f}"
-    km2_total_str = f"{dim_info['superficie_km2']:,.1f}"
-    grid_dim_str = f"{dim_info['pixeles_ancho']:,} x {dim_info['pixeles_alto']:,} px"
+        # Estimación en tiempo real de dimensiones, cantidad de píxeles (10m) y superficie
+        dim_info = estimate_bbox_dimensions(st.session_state.current_bbox)
+        px_total_str = f"{dim_info['total_pixeles']:,}"
+        ha_total_str = f"{dim_info['superficie_ha']:,.1f}"
+        km2_total_str = f"{dim_info['superficie_km2']:,.1f}"
+        grid_dim_str = f"{dim_info['pixeles_ancho']:,} x {dim_info['pixeles_alto']:,} px"
 
-    # Estilos dinámicos según nivel de carga computacional
-    badge_bg = "#f0fdf4" if dim_info["nivel"] == "optimo" else ("#fffbeb" if dim_info["nivel"] == "advertencia" else "#fef2f2")
-    badge_border = "#bbf7d0" if dim_info["nivel"] == "optimo" else ("#fde68a" if dim_info["nivel"] == "advertencia" else "#fecaca")
-    badge_left = "#16a34a" if dim_info["nivel"] == "optimo" else ("#d97706" if dim_info["nivel"] == "advertencia" else "#dc2626")
+        # Estilos dinámicos según nivel de carga computacional
+        badge_bg = "#f0fdf4" if dim_info["nivel"] == "optimo" else ("#fffbeb" if dim_info["nivel"] == "advertencia" else "#fef2f2")
+        badge_border = "#bbf7d0" if dim_info["nivel"] == "optimo" else ("#fde68a" if dim_info["nivel"] == "advertencia" else "#fecaca")
+        badge_left = "#16a34a" if dim_info["nivel"] == "optimo" else ("#d97706" if dim_info["nivel"] == "advertencia" else "#dc2626")
 
-    st.markdown(
-        f"""
-        <div style="background-color: {badge_bg}; border: 1px solid {badge_border}; border-left: 4px solid {badge_left}; padding: 8px 12px; border-radius: 6px; margin-top: 6px; margin-bottom: 8px; font-size: 0.88rem; color: #1e293b;">
-            📍 <b>BBox Activo:</b> <code>[Lon: {st.session_state.current_bbox[0]} a {st.session_state.current_bbox[2]}, Lat: {st.session_state.current_bbox[1]} a {st.session_state.current_bbox[3]}]</code><br>
-            🏛️ <b>Ubicación:</b> <span style="font-weight: 600; color: #15803d;">{loc_text}</span> &nbsp;<span style="color: #64748b; font-size: 0.78rem;">({fuente_text})</span><br>
-            📐 <b>Cálculo de Selección (10m):</b> <b>{px_total_str} píxeles</b> ({grid_dim_str}) &nbsp;|&nbsp; <b>{ha_total_str} ha</b> (~{km2_total_str} km²)
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+        st.markdown(
+            f"""
+            <div style="background-color: {badge_bg}; border: 1px solid {badge_border}; border-left: 4px solid {badge_left}; padding: 8px 12px; border-radius: 6px; margin-top: 6px; margin-bottom: 8px; font-size: 0.88rem; color: #1e293b;">
+                📍 <b>BBox Activo:</b> <code>[Lon: {st.session_state.current_bbox[0]} a {st.session_state.current_bbox[2]}, Lat: {st.session_state.current_bbox[1]} a {st.session_state.current_bbox[3]}]</code><br>
+                🏛️ <b>Ubicación:</b> <span style="font-weight: 600; color: #15803d;">{loc_text}</span> &nbsp;<span style="color: #64748b; font-size: 0.78rem;">({fuente_text})</span><br>
+                📐 <b>Cálculo de Selección (10m):</b> <b>{px_total_str} píxeles</b> ({grid_dim_str}) &nbsp;|&nbsp; <b>{ha_total_str} ha</b> (~{km2_total_str} km²)
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
 
-    if dim_info["bloqueado"]:
-        st.error(dim_info["mensaje"])
-    elif dim_info["nivel"] == "advertencia":
-        st.warning(dim_info["mensaje"])
+        if dim_info["bloqueado"]:
+            st.error(dim_info["mensaje"])
+        elif dim_info["nivel"] == "advertencia":
+            st.warning(dim_info["mensaje"])
+        
+        can_classify = not dim_info["bloqueado"]
+    else:
+        st.markdown(
+            """
+            <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #64748b; padding: 8px 12px; border-radius: 6px; margin-top: 6px; margin-bottom: 8px; font-size: 0.88rem; color: #475569;">
+                📍 <b>Estado del Visor:</b> <i>Sin rectángulo seleccionado. Trazá un rectángulo sobre el mapa satelital para definir tu área de análisis.</i>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+        can_classify = False
 
     st.markdown("---")
 
@@ -288,7 +315,8 @@ with col_left:
             f"🚀 Ejecutar Modelo de IA: ESA WorldCover ({wc_year})", 
             type="primary", 
             use_container_width=True,
-            disabled=dim_info["bloqueado"]
+            disabled=not can_classify,
+            help="Traza un rectángulo en el mapa para habilitar la clasificación." if not can_classify else None
         )
 
         if classify_wc_btn:
@@ -351,7 +379,8 @@ with col_left:
                 f"🚀 Procesar Bandas B04/B08 ({selected_scene['fecha']}) a 10m", 
                 type="primary", 
                 use_container_width=True,
-                disabled=dim_info["bloqueado"]
+                disabled=not can_classify,
+                help="Traza un rectángulo en el mapa para habilitar la clasificación." if not can_classify else None
             )
 
             if classify_s2_btn:

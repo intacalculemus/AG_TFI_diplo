@@ -14,6 +14,7 @@ from matplotlib.colors import ListedColormap
 import matplotlib.patches as mpatches
 from PIL import Image
 
+import math
 import pystac_client
 import planetary_computer
 import rasterio
@@ -23,8 +24,67 @@ from config import OUTPUTS_DIR
 from services.geo_admin_service import get_location_for_bbox
 
 STAC_API_URL = "https://planetarycomputer.microsoft.com/api/stac/v1"
-# Coordenadas por defecto: Laguna Mar Chiquita (Mar de Ansenuza), Córdoba
-DEFAULT_BBOX = [-62.95, -30.85, -62.35, -30.35]
+# Coordenadas por defecto: Laguna Mar Chiquita (Mar de Ansenuza), Córdoba (~6.4 Mpx / 64.000 ha)
+DEFAULT_BBOX = [-62.80, -30.70, -62.50, -30.50]
+
+# Límites de seguridad computacional para procesamiento en tiempo real (10m de resolución)
+OPTIMAL_PIXELS_LIMIT = 4_000_000   # ~40.000 ha (procesamiento rápido en 2-8s)
+MAX_ALLOWED_PIXELS = 10_000_000    # ~100.000 ha (límite máximo seguro para evitar OOM/congelamiento)
+
+def estimate_bbox_dimensions(bbox: List[float], res_m: float = 10.0) -> Dict[str, Any]:
+    """
+    Calcula de forma exacta las dimensiones geográficas, métricas, píxeles y superficie
+    de un Bounding Box [min_lon, min_lat, max_lon, max_lat] a una resolución dada en metros.
+    """
+    target_bbox = bbox or DEFAULT_BBOX
+    minx, miny, maxx, maxy = target_bbox
+    d_lat = max(0.0, maxy - miny)
+    d_lon = max(0.0, maxx - minx)
+    mid_lat = (miny + maxy) / 2.0
+    
+    # 1 grado de latitud ~ 111.320 metros
+    h_m = d_lat * 111320.0
+    # 1 grado de longitud varía con el coseno de la latitud
+    w_m = d_lon * 111320.0 * math.cos(math.radians(mid_lat))
+    
+    w_px = max(1, int(round(w_m / res_m)))
+    h_px = max(1, int(round(h_m / res_m)))
+    total_px = w_px * h_px
+    total_ha = round(total_px * (res_m * res_m / 10000.0), 1)
+    total_km2 = round(total_ha / 100.0, 2)
+    
+    # Evaluación semafórica de carga computacional
+    if total_px <= OPTIMAL_PIXELS_LIMIT:
+        nivel = "optimo"
+        bloqueado = False
+        mensaje = "✅ Selección óptima para procesamiento rápido en tiempo real."
+    elif total_px <= MAX_ALLOWED_PIXELS:
+        nivel = "advertencia"
+        bloqueado = False
+        mensaje = f"⚠️ Área extensa seleccionada ({total_px:,} px / {total_ha:,.1f} ha). El procesamiento puede demorar unos segundos adicionales."
+    else:
+        nivel = "exceso"
+        bloqueado = True
+        mensaje = (
+            f"🛑 Área demasiado grande ({total_px:,} píxeles / {total_ha:,.1f} ha). "
+            f"El límite máximo seguro para evitar saturar memoria es de {MAX_ALLOWED_PIXELS:,} píxeles (~100.000 ha). "
+            f"Por favor delimitá un rectángulo más acotado en el visor satelital."
+        )
+
+    return {
+        "ancho_m": round(w_m, 1),
+        "alto_m": round(h_m, 1),
+        "pixeles_ancho": w_px,
+        "pixeles_alto": h_px,
+        "total_pixeles": total_px,
+        "superficie_ha": total_ha,
+        "superficie_km2": total_km2,
+        "resolucion_m": res_m,
+        "nivel": nivel,
+        "bloqueado": bloqueado,
+        "mensaje": mensaje,
+        "limite_max_px": MAX_ALLOWED_PIXELS
+    }
 
 # Diccionario oficial de clases de ESA WorldCover 10m
 ESA_WORLDCOVER_CLASSES = {
@@ -129,6 +189,14 @@ def classify_with_esa_worldcover(
 
             if valid_window.width <= 0 or valid_window.height <= 0:
                 raise ValueError("El recuadro seleccionado queda fuera de los límites del tile de ESA WorldCover.")
+
+            requested_pixels = int(valid_window.width * valid_window.height)
+            if requested_pixels > MAX_ALLOWED_PIXELS:
+                raise ValueError(
+                    f"El área seleccionada contiene {requested_pixels:,} píxeles (~{requested_pixels * 0.01:,.1f} ha), "
+                    f"superando el límite máximo seguro de {MAX_ALLOWED_PIXELS:,} píxeles (~100.000 ha). "
+                    f"Por favor delimitá un área más pequeña."
+                )
 
             # Leer la matriz clasificada
             data = src.read(1, window=valid_window)
@@ -270,6 +338,17 @@ def fetch_and_classify_real_scene(
             raw_window = from_bounds(*native_bounds, transform=src_red.transform)
             img_window = rasterio.windows.Window(0, 0, src_red.width, src_red.height)
             valid_window = raw_window.intersection(img_window).round_lengths().round_offsets()
+            if valid_window.width <= 0 or valid_window.height <= 0:
+                raise ValueError("El recuadro seleccionado no se superpone con la escena satelital seleccionada.")
+
+            requested_pixels = int(valid_window.width * valid_window.height)
+            if requested_pixels > MAX_ALLOWED_PIXELS:
+                raise ValueError(
+                    f"El área seleccionada contiene {requested_pixels:,} píxeles (~{requested_pixels * 0.01:,.1f} ha), "
+                    f"superando el límite máximo seguro de {MAX_ALLOWED_PIXELS:,} píxeles (~100.000 ha). "
+                    f"Por favor delimitá un área más pequeña."
+                )
+
             red = src_red.read(1, window=valid_window).astype("float32")
 
             w_native_bounds = window_bounds_fn(valid_window, src_red.transform)

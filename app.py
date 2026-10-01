@@ -23,6 +23,7 @@ from services.real_satellite_service import (
     search_real_scenes,
     fetch_and_classify_real_scene,
     classify_with_esa_worldcover,
+    estimate_bbox_dimensions,
     DEFAULT_BBOX,
     ESA_WORLDCOVER_CLASSES
 )
@@ -229,15 +230,33 @@ with col_left:
     loc_text = admin_info.get("texto_formateado", "Argentina")
     fuente_text = admin_info.get("fuente", "IGN Georef")
 
+    # Estimación en tiempo real de dimensiones, cantidad de píxeles (10m) y superficie
+    dim_info = estimate_bbox_dimensions(st.session_state.current_bbox)
+    px_total_str = f"{dim_info['total_pixeles']:,}"
+    ha_total_str = f"{dim_info['superficie_ha']:,.1f}"
+    km2_total_str = f"{dim_info['superficie_km2']:,.1f}"
+    grid_dim_str = f"{dim_info['pixeles_ancho']:,} x {dim_info['pixeles_alto']:,} px"
+
+    # Estilos dinámicos según nivel de carga computacional
+    badge_bg = "#f0fdf4" if dim_info["nivel"] == "optimo" else ("#fffbeb" if dim_info["nivel"] == "advertencia" else "#fef2f2")
+    badge_border = "#bbf7d0" if dim_info["nivel"] == "optimo" else ("#fde68a" if dim_info["nivel"] == "advertencia" else "#fecaca")
+    badge_left = "#16a34a" if dim_info["nivel"] == "optimo" else ("#d97706" if dim_info["nivel"] == "advertencia" else "#dc2626")
+
     st.markdown(
         f"""
-        <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-left: 4px solid #16a34a; padding: 7px 12px; border-radius: 6px; margin-top: 6px; margin-bottom: 12px; font-size: 0.88rem; color: #1e293b;">
+        <div style="background-color: {badge_bg}; border: 1px solid {badge_border}; border-left: 4px solid {badge_left}; padding: 8px 12px; border-radius: 6px; margin-top: 6px; margin-bottom: 8px; font-size: 0.88rem; color: #1e293b;">
             📍 <b>BBox Activo:</b> <code>[Lon: {st.session_state.current_bbox[0]} a {st.session_state.current_bbox[2]}, Lat: {st.session_state.current_bbox[1]} a {st.session_state.current_bbox[3]}]</code><br>
-            🏛️ <b>Ubicación Administrativa (Argentina):</b> <span style="font-weight: 600; color: #15803d;">{loc_text}</span> &nbsp;<span style="color: #64748b; font-size: 0.78rem;">({fuente_text})</span>
+            🏛️ <b>Ubicación:</b> <span style="font-weight: 600; color: #15803d;">{loc_text}</span> &nbsp;<span style="color: #64748b; font-size: 0.78rem;">({fuente_text})</span><br>
+            📐 <b>Cálculo de Selección (10m):</b> <b>{px_total_str} píxeles</b> ({grid_dim_str}) &nbsp;|&nbsp; <b>{ha_total_str} ha</b> (~{km2_total_str} km²)
         </div>
         """,
         unsafe_allow_html=True
     )
+
+    if dim_info["bloqueado"]:
+        st.error(dim_info["mensaje"])
+    elif dim_info["nivel"] == "advertencia":
+        st.warning(dim_info["mensaje"])
 
     st.markdown("---")
 
@@ -268,7 +287,8 @@ with col_left:
         classify_wc_btn = col_wc2.button(
             f"🚀 Ejecutar Modelo de IA: ESA WorldCover ({wc_year})", 
             type="primary", 
-            use_container_width=True
+            use_container_width=True,
+            disabled=dim_info["bloqueado"]
         )
 
         if classify_wc_btn:
@@ -330,7 +350,8 @@ with col_left:
             classify_s2_btn = col_s2_2.button(
                 f"🚀 Procesar Bandas B04/B08 ({selected_scene['fecha']}) a 10m", 
                 type="primary", 
-                use_container_width=True
+                use_container_width=True,
+                disabled=dim_info["bloqueado"]
             )
 
             if classify_s2_btn:

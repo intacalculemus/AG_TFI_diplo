@@ -1,0 +1,46 @@
+{
+  "Copo": {
+    "2018": {
+      "superficie_total_ha": 1260000,
+      "coberturas": {
+        "bosque_nativo": {"ha": 850000, "porcentaje": 67.46},
+        "cultivo_agricola": {"ha": 180000, "porcentaje": 14.28},
+        "pastizal_matorral": {"ha": 190000, "porcentaje": 15.08},
+        "suelo_desnudo": {"ha": 35000, "porcentaje": 2.78},
+        "cuerpos_de_agua": {"ha": 5000, "porcentaje": 0.40}
+      }
+    },
+    "2024": {
+      "superficie_total_ha": 1260000,
+      "coberturas": {
+        "bosque_nativo": {"ha": 690000, "porcentaje": 54.76},
+        "cultivo_agricola": {"ha": 310000, "porcentaje": 24.60},
+        "pastizal_matorral": {"ha": 210000, "porcentaje": 16.67},
+        "suelo_desnudo": {"ha": 45000, "porcentaje": 3.57},
+        "cuerpos_de_agua": {"ha": 5000, "porcentaje": 0.40}
+      }
+    }
+  },
+  "Moreno": {
+    "2018": {
+      "superficie_total_ha": 1612000,
+      "coberturas": {
+        "bosque_nativo": {"ha": 920000, "porcentaje": 57.07},
+        "cultivo_agricola": {"ha": 350000, "porcentaje": 21.71},
+        "pastizal_matorral": {"ha": 300000, "porcentaje": 18.61},
+        "suelo_desnudo": {"ha": 38000, "porcentaje": 2.36},
+        "cuerpos_de_agua": {"ha": 4000, "porcentaje": 0.25}
+      }
+    },
+    "2024": {
+      "superficie_total_ha": 1612000,
+      "coberturas": {
+        "bosque_nativo": {"ha": 760000, "porcentaje": 47.15},
+        "cultivo_agricola": {"ha": 480000, "porcentaje": 29.78},
+        "pastizal_matorral": {"ha": 320000, "porcentaje": 19.85},
+        "suelo_desnudo": {"ha": 48000, "porcentaje": 2.98},
+        "cuerpos_de_agua": {"ha": 4000, "porcentaje": 0.25}
+      }
+    }
+  }
+}

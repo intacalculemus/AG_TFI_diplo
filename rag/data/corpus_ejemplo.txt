@@ -1,0 +1,83 @@
+[DOC_ID: ARQUITECTURA_Y_STACK_APP]
+Título: Arquitectura Técnica y Stack Tecnológico de la Aplicación
+Contenido: La aplicación "TFI_Grupo_6_2026: Clasificación de Coberturas del suelo con Agentes IA" fue diseñada en el marco de la Diplomatura Universitaria ISBIA - Lidesia - FCEFyN (UNC) como una plataforma modular de teledetección asistida por Inteligencia Artificial y Agentes ReAct para el Grupo_6_2026. Su arquitectura está compuesta por los siguientes componentes clave:
+1. Capa de Frontend y Visualización Geoespacial:
+- Streamlit (Python): Framework reactivo para la interfaz web.
+- Folium & streamlit-folium: Visor de mapas satelitales multicapa con selector interactivo (Google Satélite Híbrido, Google Maps Calles/Rutas, Google Terreno/Relieve, Google Satélite Limpio, OpenStreetMap y Esri World Imagery), herramientas de dibujo vectorial (Draw) para delimitar polígonos/rectángulos y superposición de rásters clasificados (ImageOverlay) con georreferenciación exacta y persistencia de zoom/posición.
+2. Motor de Datos Satelitales e Inferencia de Modelos (Backend Geoespacial):
+- STAC API de Microsoft Planetary Computer (pystac_client, planetary_computer): Permite consultar escenas satelitales abiertas de Sentinel-2 L2A y colecciones globales de ESA WorldCover en tiempo real sin descargar escenas completas.
+- Rasterio & GDAL: Lectura remota por ventanas espaciales (windowed reading) vía HTTP sobre Cloud-Optimized GeoTIFFs (COGs), transformando automáticamente coordenadas EPSG:4326 (WGS84) al sistema de proyección nativo (UTM) mediante transform_bounds.
+- Modelo IA ESA WorldCover 10m (ESA/VITO): Red neuronal profunda que clasifica la superficie terrestre a 10 metros de resolución en 8+ clases (Bosque Nativo, Cultivos Agrícolas, Matorral, Pastizales, Suelo Desnudo, Cuerpos de Agua, Construido, Humedales).
+- Procesamiento Radiométrico Multiespectral: Sentinel-2 L2A con extracción de bandas B04 (Rojo) y B08 (NIR) a 10m y cálculo de NDVI píxel a píxel: (NIR - RED) / (NIR + RED).
+- NumPy & Matplotlib: Procesamiento matricial de píxeles, cálculo de superficies (1 px = 100 m² = 0.01 ha), matrices de colores RGBA y generación de cartografía temática exportada a PNG.
+- Geocodificación Inversa Administrativa (services/geo_admin_service.py): Identificación oficial de Provincia, Departamento/Partido y Municipio en Argentina vía API Georef (IGN) con fallback a OpenStreetMap Nominatim.
+3. Cerebro del Agente y Orquestación (ReAct):
+- Patrón ReAct (Reasoning + Acting): El agente implementa un ciclo iterativo de Pensamiento (Thought), Acción (Action: invocación de herramientas registradas) y Observación (Observation: retorno de métricas reales).
+- Registro Modular de Herramientas (ToolRegistry): Arquitectura extensible en tools/ donde cada funcionalidad (clasificación IA, consulta de catálogo STAC, series temporales, RAG) se registra como una herramienta independiente.
+- Motor Híbrido LLM / Sintetizador Determinístico: Compatible con modelos de lenguaje vía API (OpenAI/HuggingFace) y dotado de un sintetizador analítico que extrae métricas reales del procesamiento satelital para emitir diagnósticos técnicos cuantitativos.
+4. Módulo RAG (Retrieval-Augmented Generation):
+- SimpleKnowledgeBase (rag/vector_store.py): Motor de recuperación documental local indexado por fragmentos [DOC_ID] para fundamentar las respuestas del asistente con documentación técnica del stack, comparativa de imágenes, geocodificación y guías metodológicas.
+
+[DOC_ID: GEOCODIFICACION_ADMINISTRATIVA_ARGENTINA]
+Título: Identificación de Jurisdicción y División Política en Argentina (IGN Georef)
+Contenido: Para determinar automáticamente en qué Provincia, Departamento/Partido y Municipio/Localidad se encuentra el área delimitada o clasificada, la aplicación implementa el servicio services/geo_admin_service.py:
+1. Cálculo de Centroide del Polígono / BBox:
+- A partir de las coordenadas del polígono trazado por el usuario o del Bounding Box activo [min_lon, min_lat, max_lon, max_lat], se calcula el punto medio geográfico (centroide: latitud y longitud).
+2. Opciones Técnicas de Geocodificación Inversa:
+- Opción A: API Georef Oficial del Instituto Geográfico Nacional (IGN) / Datos Abiertos del Gobierno Argentino (https://apis.datos.gob.ar/georef/api/ubicacion?lat=...&lon=...). Es el método oficial, no requiere claves ni token, es ultra rápido y devuelve la división política estandarizada de Argentina (Provincia, Departamento, Municipio).
+- Opción B: Nominatim (OpenStreetMap): Servicio global de georreferenciación inversa utilizado como contingencia o respaldo (fallback) en caso de interrupción de red o áreas limítrofes.
+- Opción C: Spatial Join Local (Shapefile / GeoJSON IGN): Permite cruces espaciales 100% offline mediante GeoPandas y Shapely contra capas vectoriales de departamentos descargadas localmente.
+3. Integración en la Aplicación:
+- El resultado se almacena en el caché de Streamlit (@st.cache_data) para evitar consultas redundantes y se muestra en una tarjeta informativa bajo el mapa, en las métricas de clasificación y dentro del contexto que analiza el Asistente ReAct.
+
+[DOC_ID: CAPAS_BASE_GOOGLE_MAPS]
+Título: Capas Base y Proveedores de Mapas en el Visor Folium
+Contenido: El visor cartográfico incorpora un menú de capas desplegable (LayerControl) que permite alternar entre múltiples cartografías base de alta calidad:
+1. Google Híbrido (lyrs=y): Combina la fotografía satelital de alta resolución espacial de Google con una capa vectorial superpuesta de rutas nacionales/provinciales, caminos rurales, nombres de ciudades y límites territoriales. Es la capa recomendada para navegación territorial y loteo.
+2. Google Maps Calles (lyrs=m): Mapa vectorial tradicional de Google con énfasis en trama urbana, red vial y toponimia.
+3. Google Terreno (lyrs=p): Mapa topográfico con sombreado de relieve y curvas de nivel, útil para análisis de cuencas y geomorfología.
+4. Google Satélite Puro (lyrs=s): Ortofotografía satelital limpia sin rótulos ni etiquetas vectoriales.
+5. OpenStreetMap (OSM): Cartografía comunitaria de código abierto.
+6. Esri World Imagery (ArcGIS): Ortomosaico satelital de alta resolución de Esri.
+Las clasificaciones generadas (ráster RGBA) y los polígonos dibujados por el usuario se montan como capas independientes que pueden activarse o desactivarse selectivamente sobre cualquiera de estos fondos.
+
+[DOC_ID: COMPARATIVA_FUENTES_IA_VS_UMBRALIZACION]
+Título: Comparativa de Imágenes y Datos: Modelo IA (ESA WorldCover) vs. Umbralización Radiométrica (Sentinel-2)
+Contenido: La aplicación ofrece dos métodos de clasificación con orígenes de datos y metodologías satelitales claramente diferenciadas:
+1. Modelo de IA Deep Learning: ESA WorldCover (10m):
+- ¿Qué imágenes utiliza?: No utiliza una sola fotografía de un día particular. Emplea un mosaico anual compuesto multitemporal y multisensor integrado a lo largo de todo el año (disponible para 2020 y 2021).
+- Sensores combinados: Fusiona series temporales completas de Sentinel-2 (óptico multiespectral en 13 bandas a lo largo de las 4 estaciones) con Sentinel-1 (Radar de Apertura Sintética SAR en Banda C, polarizaciones VV y VH). El radar SAR permite penetrar la nubosidad y medir la estructura volumétrica del dosel arbóreo, rugosidad y humedad.
+- Modelo de IA: Redes Neuronales Convolucionales Profundas (Deep Learning CNN / U-Net) entrenadas por la ESA y VITO con millones de puntos validados en terreno.
+- Coberturas resultantes: 8+ clases taxonómicas estructurales (Bosque Nativo/Árboles, Cultivos Agrícolas, Matorral/Arbustal, Pastizal/Sabana, Suelo Desnudo, Cuerpos de Agua, Humedales Herbáceos, Urbano/Construido).
+- Aplicación principal: Identificar la matriz estructural del territorio (diferenciar bosque nativo, zonas de cultivo consolidado, humedales y pasturas).
+
+2. Umbralización Radiométrica: Sentinel-2 L2A (NDVI a 10m):
+- ¿Qué imágenes utiliza?: Utiliza una escena satelital mono-temporal puntual (una fecha y hora exacta seleccionada del catálogo histórico entre 2020 y 2024).
+- Bandas espectrales: Descarga directamente las bandas brutas de reflectancia de superficie (Bottom of Atmosphere BOA): Banda B04 (Rojo a 665 nm) y Banda B08 (Infrarrojo Cercano / NIR a 842 nm) a 10 metros de resolución espacial.
+- Algoritmo: Cálculo del índice biofísico NDVI = (B08 - B04) / (B08 + B04) y segmentación por umbral de vigor fotosintético (ej. NDVI >= 0.35 para vegetación activa).
+- Coberturas resultantes: 3 clases biofísicas instantáneas (Vegetación con vigor activo, Suelo Desnudo/Barbecho/Rastrojo seco, Cuerpos de Agua/Sombras).
+- Aplicación principal: Monitorear el estado fenológico instantáneo del lote en una fecha histórica precisa (verificar si en un mes específico el lote tenía cultivo verde, estaba en barbecho seco o inundado).
+
+[DOC_ID: GUIA_MODIFICACION_E_INTERVENCION]
+Título: Guía Práctica de Intervención y Modificación del Código
+Contenido: Para que los profesionales del Grupo_6_2026 puedan intervenir, adaptar o extender la aplicación según sus necesidades agronómicas, hídricas o ambientales:
+1. Modificar el Área de Interés por Defecto o Coordenadas:
+- En services/real_satellite_service.py y app.py, ajustar la constante DEFAULT_BBOX = [lon_min, lat_min, lon_max, lat_max] y el centro inicial (Laguna Mar Chiquita: [-30.60, -62.65]).
+2. Modificar Umbrales Biofísicos o Algoritmos de Clasificación:
+- En services/real_satellite_service.py -> función fetch_and_classify_real_scene(), se puede cambiar el umbral de vegetación ndvi_threshold (por defecto 0.35), o incorporar nuevos índices como NDWI (agua: (B03-B08)/(B03+B08)) o NBR (quemas).
+3. Agregar Nuevas Herramientas al Agente ReAct:
+- Crear una función en tools/ que reciba parámetros en texto y devuelva un string o JSON con métricas.
+- Registrarla en tools/__init__.py utilizando default_registry.register(Tool(name="...", description="...", func=tu_funcion)).
+4. Personalizar la Interfaz de Usuario:
+- En app.py, se pueden ajustar los filtros temporales de fechas, agregar nuevos widgets de Streamlit (sliders, selectbox), cambiar colores del mapa o agregar gráficos interactivos adicionales.
+5. Ampliar la Base Documental RAG:
+- Agregar nuevos bloques de texto con el formato [DOC_ID: IDENTIFICADOR], Título y Contenido en el archivo rag/data/corpus_ejemplo.txt.
+
+[DOC_ID: GUIA_METODOLOGICA_INDICES_Y_COBERTURAS]
+Título: Guía Metodológica de Teledetección y Monitoreo Biofísico Agroambiental
+Contenido: El índice NDVI (Normalized Difference Vegetation Index) cuantifica el vigor fotosintético de la vegetación en un rango de -1 a 1.
+- Coberturas de vegetación densa y activa (bosques continuos, cultivos en pleno desarrollo vegetativo) presentan valores de NDVI entre 0.60 y 0.85.
+- Pastizales naturales, matorrales y sabanas presentan valores entre 0.35 y 0.55 según la estación del año.
+- Suelo desnudo, barbechos y rastrojos secos oscilan entre 0.05 y 0.30.
+- Cuerpos de agua y sombras topográficas presentan valores negativos o cercanos a cero (NDVI < 0.05).
+El análisis cuantitativo de coberturas a 10 metros permite calcular con precisión la superficie en hectáreas (1 píxel de 10m x 10m = 100 m² = 0.01 hectáreas), facilitando diagnósticos directos de balance territorial agrícola, forestal e hídrico.

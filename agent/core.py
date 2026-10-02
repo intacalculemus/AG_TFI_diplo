@@ -6,6 +6,7 @@ from typing import List, Dict, Any, Tuple, Optional
 import os
 import re
 import json
+from pathlib import Path
 
 try:
     from openai import OpenAI
@@ -45,13 +46,54 @@ class GeoReActAgent:
         self.client = self._init_client()
 
     def _init_client(self) -> Optional[Any]:
-        """Inicializa el cliente de API OpenAI o HuggingFace."""
-        if not HAS_OPENAI or not LLM_API_KEY:
+        """Inicializa el cliente de API OpenAI o HuggingFace de forma segura."""
+        if not HAS_OPENAI:
             return None
-        return OpenAI(
-            base_url=LLM_BASE_URL,
-            api_key=LLM_API_KEY
-        )
+
+        hf_token = os.getenv("HF_TOKEN", "")
+        openai_key = os.getenv("OPENAI_API_KEY", "")
+        model_id = os.getenv("MODEL_ID", "")
+        base_url = LLM_BASE_URL
+        api_key = LLM_API_KEY
+
+        # Compatibilidad en tiempo de ejecución con Streamlit Cloud
+        # Solo acceder a st.secrets si el archivo de secretos existe físicamente
+        secrets_file_1 = Path.home() / ".streamlit" / "secrets.toml"
+        secrets_file_2 = Path(__file__).resolve().parent.parent / ".streamlit" / "secrets.toml"
+        if secrets_file_1.exists() or secrets_file_2.exists():
+            try:
+                import streamlit as st
+                if "HF_TOKEN" in st.secrets and not hf_token:
+                    hf_token = str(st.secrets["HF_TOKEN"])
+                if "OPENAI_API_KEY" in st.secrets and not openai_key:
+                    openai_key = str(st.secrets["OPENAI_API_KEY"])
+                if "MODEL_ID" in st.secrets and not model_id:
+                    model_id = str(st.secrets["MODEL_ID"])
+            except Exception:
+                pass
+
+        if hf_token:
+            base_url = "https://router.huggingface.co/v1"
+            api_key = hf_token
+            self.model = model_id or "Qwen/Qwen2.5-72B-Instruct"
+        elif openai_key:
+            base_url = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
+            api_key = openai_key
+            self.model = model_id or "gpt-4o-mini"
+        elif LLM_API_KEY:
+            api_key = LLM_API_KEY
+            base_url = LLM_BASE_URL
+
+        if not api_key:
+            return None
+
+        try:
+            return OpenAI(
+                base_url=base_url,
+                api_key=api_key
+            )
+        except Exception:
+            return None
 
     def _call_llm(self, messages: List[Dict[str, str]]) -> str:
         """Invoca al modelo de lenguaje o genera una respuesta dinámica sobre datos reales."""
@@ -197,7 +239,14 @@ class GeoReActAgent:
                     "Action: rag_documental_inta | comparativa fuentes imagenes modelo ia worldcover umbralizacion sentinel"
                 )
 
-            # 3. Si el usuario pregunta sobre la arquitectura, stack, tecnologías o cómo intervenir la app
+            # 3. Si el usuario pregunta sobre el tipo de agente, ReAct vs LangChain o rendimiento del agente
+            if any(k in main_query_text for k in ["langchain", "react", "tipo de agente", "comparativa agente", "rendimiento agente", "framework", "agente react"]):
+                return (
+                    "Thought: El usuario consulta sobre el tipo de agente implementado (ReAct Nativo), la comparativa con LangChain y el análisis de rendimiento. Consultaré la base documental RAG.\n"
+                    "Action: rag_documental_inta | arquitectura agente react langchain rendimiento comparativa"
+                )
+
+            # 4. Si el usuario pregunta sobre la arquitectura general, stack, tecnologías o cómo intervenir la app
             if any(k in main_query_text for k in ["stack", "arquitectura", "construida", "desarrollada", "tecnologias", "tecnologías", "librerias", "librerías", "funciona", "intervenir", "modificar", "código", "codigo"]):
                 return (
                     "Thought: El usuario solicita información sobre el stack tecnológico, la arquitectura o la forma de intervenir la app. Consultaré la base documental RAG.\n"

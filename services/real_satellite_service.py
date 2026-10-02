@@ -402,7 +402,7 @@ def fetch_and_classify_real_scene(
     im = ax.imshow(grid, cmap=cmap, origin="upper")
 
     ax.set_title(
-        f"Clasificación Sentinel-2 L2A - Fecha: {fecha_str}\n"
+        f"Clasificación Radiométrica (NDVI Sentinel-2 L2A) - Fecha: {fecha_str}\n"
         f"Resolución: 10m | Extensión: {total_ha:,.1f} ha ({total_px:,} píxeles)",
         fontsize=10,
         fontweight="bold"

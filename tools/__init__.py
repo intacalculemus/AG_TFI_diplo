@@ -8,6 +8,7 @@ from .timeseries import analyze_ndvi_timeseries
 from .rag_search import search_technical_rag
 from .visualizer import generate_visualization
 from .single_date_classifier import classify_single_date
+from .drainage import analyze_drainage_network
 
 # Registro de herramientas disponibles para el Agente
 default_registry.register(Tool(
@@ -18,11 +19,19 @@ default_registry.register(Tool(
 ))
 
 default_registry.register(Tool(
+    name="red_drenaje_hidrico",
+    description="Calcula la red de líneas de drenaje hídrico superficial, pendientes (%), dirección de flujo (acimut) y riesgo de erosión hídrica a partir de Copernicus DEM 30m.",
+    func=analyze_drainage_network,
+    usage_example="Action: red_drenaje_hidrico | [-62.8, -30.7, -62.5, -30.5]"
+))
+
+default_registry.register(Tool(
     name="catalogo_satelital",
     description="Consulta la lista y fechas de imágenes Sentinel-2 L2A reales disponibles para un recuadro o región.",
     func=search_satellite_catalog,
     usage_example="Action: catalogo_satelital | Copo | 2023-01-01 | 2024-12-31"
 ))
+
 
 default_registry.register(Tool(
     name="clasificar_fecha_individual",
@@ -57,6 +66,7 @@ __all__ = [
     "ToolRegistry",
     "default_registry",
     "classify_land_cover_ai",
+    "analyze_drainage_network",
     "search_satellite_catalog",
     "get_available_dates_for_roi",
     "classify_single_date",
@@ -64,3 +74,4 @@ __all__ = [
     "search_technical_rag",
     "generate_visualization"
 ]
+

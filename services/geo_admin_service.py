@@ -2,13 +2,157 @@
 Módulo de Geocodificación Inversa y Jurisdicción Administrativa para Argentina.
 Grupo_6_2026 / ISBIA - Lidesia - FCEFyN (UNC)
 
-Permite determinar la Provincia, Departamento/Partido y Municipio/Localidad
-donde se encuentra ubicado un polígono, centroide o Bounding Box en la República Argentina.
+Permite:
+1. Determinar la Provincia, Departamento/Partido y Municipio/Localidad para cualquier punto o BBox.
+2. Búsqueda toponímica y geoposicionamiento rápido por Localidad, Municipio, Departamento o Paraje (IGN Georef + Nominatim).
 """
 
 import urllib.request
+import urllib.parse
 import json
 from typing import Dict, Any, Optional, Tuple
+
+
+def search_location_argentina(query: str, timeout: float = 4.0) -> Dict[str, Any]:
+    """
+    Busca una localidad, departamento, municipio o paraje en Argentina y devuelve sus coordenadas
+    geográficas para posicionar el visor satelital.
+    
+    Admite formatos como:
+      - "Pergamino, Buenos Aires"
+      - "Bandera, Santiago del Estero"
+      - "Río Cuarto"
+      - "Colonia Caroya"
+      - "Balcarce"
+      - "Mar Chiquita, Córdoba"
+    
+    Prioridad:
+    1. API Georef Oficial del Instituto Geográfico Nacional (IGN).
+       Consulta secuencialmente: localidades, municipios, departamentos, asentamientos y provincias.
+    2. Fallback a Nominatim OpenStreetMap si no se localiza en Georef.
+    """
+    query = query.strip()
+    if not query:
+        return {"ok": False, "error": "Consulta de búsqueda vacía."}
+
+    nombre = query
+    provincia = None
+    if "," in query:
+        parts = [p.strip() for p in query.split(",", 1)]
+        nombre = parts[0]
+        provincia = parts[1]
+
+    # 1. Intentar con endpoints de IGN Georef
+    endpoints_georef = [
+        ("localidades", 12),
+        ("municipios", 12),
+        ("departamentos", 10),
+        ("asentamientos", 13),
+        ("provincias", 7)
+    ]
+
+    for ep, zoom in endpoints_georef:
+        params = {"nombre": nombre, "max": 3}
+        if provincia and ep != "provincias":
+            params["provincia"] = provincia
+
+        url = f"https://apis.datos.gob.ar/georef/api/{ep}?" + urllib.parse.urlencode(params)
+        try:
+            req = urllib.request.Request(
+                url, 
+                headers={"User-Agent": "TFI-Diplo-ISBIA/1.0 (Argentina Geo-Classifier)"}
+            )
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                items = data.get(ep, [])
+                if items:
+                    item = items[0]
+                    centroide = item.get("centroide", {})
+                    lat = centroide.get("lat")
+                    lon = centroide.get("lon")
+
+                    prov_nom = (
+                        item.get("provincia", {}).get("nombre") 
+                        if isinstance(item.get("provincia"), dict) 
+                        else (item.get("nombre") if ep == "provincias" else None)
+                    )
+                    dpto_nom = (
+                        item.get("departamento", {}).get("nombre") 
+                        if isinstance(item.get("departamento"), dict) 
+                        else (item.get("nombre") if ep == "departamentos" else None)
+                    )
+                    muni_nom = (
+                        item.get("municipio", {}).get("nombre") 
+                        if isinstance(item.get("municipio"), dict) 
+                        else (item.get("nombre") if ep == "municipios" else None)
+                    )
+
+                    texto_parts = [item.get("nombre", nombre)]
+                    if dpto_nom and dpto_nom != item.get("nombre"):
+                        texto_parts.append(f"Dpto. {dpto_nom}")
+                    if prov_nom:
+                        texto_parts.append(f"Pcia. de {prov_nom}")
+
+                    if lat is not None and lon is not None:
+                        return {
+                            "ok": True,
+                            "nombre": item.get("nombre"),
+                            "provincia": prov_nom,
+                            "departamento": dpto_nom,
+                            "municipio": muni_nom,
+                            "lat": float(lat),
+                            "lon": float(lon),
+                            "zoom_sugerido": zoom,
+                            "texto_formateado": ", ".join(texto_parts),
+                            "fuente": f"IGN Georef ({ep.capitalize()})"
+                        }
+        except Exception:
+            pass
+
+    # 2. Fallback a Nominatim OpenStreetMap
+    try:
+        osm_query = f"{query}, Argentina" if "argentina" not in query.lower() else query
+        url_osm = "https://nominatim.openstreetmap.org/search?" + urllib.parse.urlencode({
+            "q": osm_query, 
+            "format": "json", 
+            "limit": 1
+        })
+        req_osm = urllib.request.Request(
+            url_osm, 
+            headers={"User-Agent": "TFI-Diplo-ISBIA/1.0 (Argentina Geo-Classifier)"}
+        )
+        with urllib.request.urlopen(req_osm, timeout=timeout) as resp:
+            data_osm = json.loads(resp.read().decode("utf-8"))
+            if data_osm:
+                item = data_osm[0]
+                lat = float(item["lat"])
+                lon = float(item["lon"])
+                raw_bbox = item.get("boundingbox")
+                f_bounds = None
+                if raw_bbox and len(raw_bbox) == 4:
+                    # Nominatim boundingbox: [min_lat, max_lat, min_lon, max_lon]
+                    f_bounds = [[float(raw_bbox[0]), float(raw_bbox[2])], [float(raw_bbox[1]), float(raw_bbox[3])]]
+
+                return {
+                    "ok": True,
+                    "nombre": item.get("display_name", query).split(",")[0],
+                    "provincia": None,
+                    "departamento": None,
+                    "municipio": None,
+                    "lat": lat,
+                    "lon": lon,
+                    "zoom_sugerido": 12,
+                    "folium_bounds": f_bounds,
+                    "texto_formateado": item.get("display_name"),
+                    "fuente": "OpenStreetMap Nominatim"
+                }
+    except Exception:
+        pass
+
+    return {
+        "ok": False,
+        "error": f"No se pudo localizar \"{query}\" en el IGN ni en OpenStreetMap."
+    }
 
 
 def get_administrative_location(

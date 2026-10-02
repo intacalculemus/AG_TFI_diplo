@@ -23,16 +23,17 @@ OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
 # Soporta tanto HuggingFace Router como OpenAI directo
 HF_TOKEN = os.getenv("HF_TOKEN", "")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+MODEL_ID_ENV = os.getenv("MODEL_ID", "")
 
 # Prioridad de endpoints: HuggingFace Router si hay HF_TOKEN, sino OpenAI
 if HF_TOKEN:
     LLM_BASE_URL = "https://router.huggingface.co/v1"
     LLM_API_KEY = HF_TOKEN
-    DEFAULT_MODEL = os.getenv("MODEL_ID", "Qwen/Qwen2.5-72B-Instruct")
+    DEFAULT_MODEL = MODEL_ID_ENV or "Qwen/Qwen2.5-72B-Instruct"
 else:
     LLM_BASE_URL = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
     LLM_API_KEY = OPENAI_API_KEY
-    DEFAULT_MODEL = os.getenv("MODEL_ID", "gpt-4o-mini")
+    DEFAULT_MODEL = MODEL_ID_ENV or "gpt-4o-mini"
 
 # Parámetros del Agente
 AGENT_MAX_STEPS = int(os.getenv("AGENT_MAX_STEPS", "7"))

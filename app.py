@@ -189,6 +189,59 @@ if "drawn_geometry" not in st.session_state:
 if "last_searched_location" not in st.session_state:
     st.session_state.last_searched_location = None
 
+# -------------------------------------------------------------
+# SIDEBAR: CONFIGURACIÓN DEL AGENTE IA Y PROVEEDOR LLM
+# -------------------------------------------------------------
+with st.sidebar:
+    st.header("⚙️ Configuración del Sistema")
+    
+    with st.expander("🤖 Conexión al Modelo LLM", expanded=st.session_state.agent.client is None):
+        st.markdown(
+            "Configurá tu clave en **Streamlit Secrets** (`HF_TOKEN` / `OPENAI_API_KEY`) o ingresala directamente aquí:"
+        )
+        provider_choice = st.selectbox(
+            "Proveedor LLM:",
+            ["Automático (Secrets / .env)", "Hugging Face Router", "OpenAI"],
+            index=0
+        )
+        
+        user_key = st.text_input(
+            "API Key / Token:",
+            type="password",
+            placeholder="hf_... o sk-...",
+            help="Pegá tu token de Hugging Face (gratuito) o tu API Key de OpenAI."
+        )
+        
+        default_m = st.session_state.agent.model or "Qwen/Qwen2.5-72B-Instruct"
+        custom_model = st.text_input(
+            "Modelo:",
+            value=default_m,
+            help="HuggingFace: Qwen/Qwen2.5-72B-Instruct, meta-llama/Llama-3.3-70B-Instruct | OpenAI: gpt-4o-mini"
+        )
+        
+        if st.button("🔌 Conectar / Actualizar LLM", use_container_width=True, type="primary"):
+            st.session_state.agent.client = st.session_state.agent._init_client(
+                custom_key=user_key if user_key else None,
+                custom_provider=provider_choice if provider_choice != "Automático (Secrets / .env)" else None,
+                custom_model=custom_model if custom_model else None
+            )
+            st.rerun()
+
+    # Estado de Conexión en Sidebar
+    if st.session_state.agent.client is not None:
+        st.success(f"🟢 **LLM Conectado:** `{st.session_state.agent.model}`")
+    else:
+        st.warning("🟡 **Modo Local:** Sin API Key activa.\n\n*Podés ingresar tu token en esta barra lateral o agregar `HF_TOKEN` en los Secrets de Streamlit Cloud.*")
+    
+    st.markdown("---")
+    st.markdown("### 📚 Acerca del Proyecto")
+    st.markdown(
+        "- **Diplomatura:** ISBIA - Lidesia - UNC\n"
+        "- **Grupo:** 6 (2026)\n"
+        "- **Datos:** STAC Microsoft Planetary Computer\n"
+        "- **Modelos:** ESA WorldCover 10m & Copernicus DEM 30m"
+    )
+
 # Encabezado y Subtítulo enriquecido con Stack Tecnológico y Timestamp de Compilación
 st.title("🛰️ TFI_Grupo_6_2026: Clasificación de Coberturas del suelo con Agentes IA")
 st.caption(f"⏱️ **Última compilación / actualización:** `{last_update_str}` | Diplomatura Universitaria ISBIA - Lidesia - FCEFyN (UNC) / Grupo_6_2026")

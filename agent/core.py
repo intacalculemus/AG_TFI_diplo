@@ -45,7 +45,12 @@ class GeoReActAgent:
         self.system_prompt = build_system_prompt(self.registry.build_system_description())
         self.client = self._init_client()
 
-    def _init_client(self) -> Optional[Any]:
+    def _init_client(
+        self,
+        custom_key: Optional[str] = None,
+        custom_provider: Optional[str] = None,
+        custom_model: Optional[str] = None
+    ) -> Optional[Any]:
         """Inicializa el cliente de API OpenAI o HuggingFace de forma segura."""
         if not HAS_OPENAI:
             return None
@@ -56,21 +61,36 @@ class GeoReActAgent:
         base_url = LLM_BASE_URL
         api_key = LLM_API_KEY
 
-        # Compatibilidad en tiempo de ejecución con Streamlit Cloud
-        # Solo acceder a st.secrets si el archivo de secretos existe físicamente
-        secrets_file_1 = Path.home() / ".streamlit" / "secrets.toml"
-        secrets_file_2 = Path(__file__).resolve().parent.parent / ".streamlit" / "secrets.toml"
-        if secrets_file_1.exists() or secrets_file_2.exists():
-            try:
-                import streamlit as st
-                if "HF_TOKEN" in st.secrets and not hf_token:
-                    hf_token = str(st.secrets["HF_TOKEN"])
-                if "OPENAI_API_KEY" in st.secrets and not openai_key:
-                    openai_key = str(st.secrets["OPENAI_API_KEY"])
-                if "MODEL_ID" in st.secrets and not model_id:
-                    model_id = str(st.secrets["MODEL_ID"])
-            except Exception:
-                pass
+        # Compatibilidad directa con Streamlit Cloud Secrets (st.secrets)
+        try:
+            import streamlit as st
+            if hasattr(st, "secrets"):
+                if not hf_token and "HF_TOKEN" in st.secrets:
+                    hf_token = str(st.secrets["HF_TOKEN"]).strip()
+                if not openai_key and "OPENAI_API_KEY" in st.secrets:
+                    openai_key = str(st.secrets["OPENAI_API_KEY"]).strip()
+                if not model_id and "MODEL_ID" in st.secrets:
+                    model_id = str(st.secrets["MODEL_ID"]).strip()
+        except Exception:
+            pass
+
+        # Parámetros personalizados pasados desde la interfaz de usuario (Sidebar)
+        if custom_key:
+            custom_key = custom_key.strip()
+            if custom_provider == "HuggingFace" or custom_key.startswith("hf_"):
+                hf_token = custom_key
+                openai_key = ""
+            elif custom_provider == "OpenAI" or custom_key.startswith("sk-"):
+                openai_key = custom_key
+                hf_token = ""
+            else:
+                if custom_key.startswith("hf_"):
+                    hf_token = custom_key
+                else:
+                    openai_key = custom_key
+
+        if custom_model:
+            model_id = custom_model.strip()
 
         if hf_token:
             base_url = "https://router.huggingface.co/v1"
@@ -83,6 +103,8 @@ class GeoReActAgent:
         elif LLM_API_KEY:
             api_key = LLM_API_KEY
             base_url = LLM_BASE_URL
+            if model_id:
+                self.model = model_id
 
         if not api_key:
             return None

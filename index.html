@@ -1,0 +1,1968 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Portal del Informe Final Integrador — Diplomatura ISBIA 2026 | Dr. Federico J. Letourneau</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Merriweather:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --navy: #0f2942;
+      --teal: #155e75;
+      --forest: #166534;
+      --bg: #f1f5f9;
+      --card: #ffffff;
+      --text: #1e293b;
+      --muted: #475569;
+      --border: #cbd5e1;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 0;
+      line-height: 1.6;
+    }
+    /* Top Institutional Navigation Bar */
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      background: rgba(15, 41, 66, 0.97);
+      backdrop-filter: blur(10px);
+      border-bottom: 2px solid #16a34a;
+      color: #ffffff;
+      padding: 10px 24px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+    }
+    .topbar-inner {
+      max-width: 1240px;
+      margin: 0 auto;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .brand {
+      display: flex;
+      flex-direction: column;
+    }
+    .brand-tag {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: #6ee7b7;
+      font-weight: 700;
+    }
+    .brand-title {
+      font-size: 1.02rem;
+      font-weight: 800;
+      color: #ffffff;
+    }
+    .nav-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .tab-btn {
+      background: rgba(255,255,255,0.08);
+      color: #e2e8f0;
+      border: 1px solid rgba(255,255,255,0.18);
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 0.84rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .tab-btn:hover {
+      background: rgba(255,255,255,0.18);
+      color: #ffffff;
+    }
+    .tab-btn.active {
+      background: #16a34a;
+      color: #ffffff;
+      border-color: #4ade80;
+      box-shadow: 0 2px 8px rgba(22, 163, 74, 0.4);
+    }
+    /* Quick Action Bar */
+    .quick-bar {
+      background: #ffffff;
+      border-bottom: 1px solid var(--border);
+      padding: 12px 24px;
+    }
+    .quick-inner {
+      max-width: 1240px;
+      margin: 0 auto;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .action-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .btn-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 13px;
+      border-radius: 7px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      text-decoration: none;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    .btn-link:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 3px 8px rgba(0,0,0,0.12);
+    }
+    .btn-streamlit { background: #ff4b4b; color: #ffffff; }
+    .btn-github { background: #1e293b; color: #ffffff; }
+    .btn-calculemus { background: #166534; color: #ffffff; }
+    .btn-pdf { background: #0284c7; color: #ffffff; }
+    .btn-pdf-master { background: #0f2942; color: #ffffff; }
+    .btn-orig { background: #f1f5f9; color: #0f2942; border: 1px solid #94a3b8; }
+
+    /* Main Container */
+    .container {
+      max-width: 1180px;
+      margin: 24px auto 60px auto;
+      padding: 0 20px;
+    }
+    .view-panel {
+      display: none;
+      background: var(--card);
+      border-radius: 12px;
+      padding: 32px 38px;
+      box-shadow: 0 4px 20px rgba(15, 41, 66, 0.07);
+      border: 1px solid #e2e8f0;
+    }
+    .view-panel.active {
+      display: block;
+      animation: fadeIn 0.25s ease;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Content Styling inside Views */
+    h1, h2, h3, h4 { color: var(--navy); line-height: 1.3; }
+    h1 { font-size: 1.65rem; border-bottom: 3px solid var(--navy); padding-bottom: 8px; }
+    h2 { font-size: 1.3rem; color: #134068; border-bottom: 1px solid #cbd5e1; padding-bottom: 6px; margin-top: 1.8em; }
+    h3 { font-size: 1.08rem; color: #165b4c; margin-top: 1.3em; }
+    p, li { font-size: 0.97rem; color: #1e293b; }
+    a { color: #0284c7; font-weight: 600; }
+    code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.86rem;
+      background: #f1f5f9;
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid #e2e8f0;
+      color: #0f172a;
+    }
+    .cover-banner {
+      background: linear-gradient(135deg, #0b2239 0%, #134e5e 65%, #1b6b4f 100%);
+      color: #ffffff;
+      padding: 28px 32px;
+      border-radius: 12px;
+      margin-bottom: 24px;
+    }
+    .cover-banner .inst-top {
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #a7f3d0;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .cover-banner h1 {
+      color: #ffffff;
+      border: none;
+      font-size: 1.6rem;
+      margin: 0 0 10px 0;
+      padding: 0;
+    }
+    .cover-banner .subtitle {
+      font-size: 1rem;
+      color: #e2e8f0;
+      margin-bottom: 16px;
+    }
+    .cover-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 18px;
+      font-size: 0.88rem;
+      border-top: 1px solid rgba(255,255,255,0.22);
+      padding-top: 12px;
+      color: #f8fafc;
+    }
+    .cover-meta span strong { color: #6ee7b7; }
+    .part-header {
+      background: linear-gradient(135deg, #0f2942 0%, #155e75 100%);
+      color: white;
+      padding: 24px 28px;
+      border-radius: 10px;
+      margin-bottom: 22px;
+    }
+    .part-header .part-tag {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #6ee7b7;
+      font-weight: 700;
+    }
+    .part-header h1 {
+      color: white;
+      border: none;
+      margin: 6px 0 8px 0;
+      font-size: 1.48rem;
+    }
+    .part-header p { color: #e2e8f0; margin: 0; font-size: 0.92rem; }
+    .thesis-box {
+      background: #f0fdf4;
+      border-left: 5px solid #16a34a;
+      border-top: 1px solid #bbf7d0;
+      border-right: 1px solid #bbf7d0;
+      border-bottom: 1px solid #bbf7d0;
+      padding: 16px 20px;
+      border-radius: 8px;
+      margin: 16px 0;
+    }
+    .thesis-box .title {
+      font-weight: 700;
+      color: #14532d;
+      font-size: 1.02rem;
+      margin-bottom: 6px;
+    }
+    .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      border-radius: 99px;
+      text-transform: uppercase;
+    }
+    .badge-p1 { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
+    .badge-p2 { background: #dbeafe; color: #1e40af; border: 1px solid #93c5fd; }
+    .badge-p3 { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0 22px 0;
+      font-size: 0.9rem;
+    }
+    th {
+      background: var(--navy);
+      color: #ffffff;
+      font-weight: 600;
+      text-align: left;
+      padding: 10px 12px;
+      border: 1px solid var(--navy);
+    }
+    th code {
+      background: rgba(255, 255, 255, 0.16);
+      color: #a7f3d0;
+      border-color: rgba(255, 255, 255, 0.28);
+    }
+    td {
+      padding: 9px 12px;
+      border: 1px solid #cbd5e1;
+      vertical-align: top;
+    }
+    tbody tr:nth-child(even) { background: #f8fafc; }
+    .figure-card {
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      padding: 16px;
+      margin: 18px 0;
+      background: #ffffff;
+      text-align: center;
+    }
+    .figure-card img {
+      max-width: 100%;
+      max-height: 520px;
+      height: auto;
+      border-radius: 6px;
+      border: 1px solid #e2e8f0;
+    }
+    .figure-caption {
+      font-size: 0.86rem;
+      color: #475569;
+      margin-top: 10px;
+      font-style: italic;
+    }
+    .equation-box {
+      background: #f8fafc;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 12px 18px;
+      margin: 14px 0;
+      text-align: center;
+      font-family: 'Merriweather', serif;
+      font-size: 0.98rem;
+    }
+    /* Interactive Priority Cards on Home View */
+    .priority-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 18px;
+      margin: 22px 0;
+    }
+    .p-card {
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      padding: 20px;
+      background: #ffffff;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .p-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 20px rgba(15, 41, 66, 0.1);
+    }
+    .p-card.p1 { border-top: 5px solid #16a34a; }
+    .p-card.p2 { border-top: 5px solid #2563eb; }
+    .p-card.p3 { border-top: 5px solid #d97706; }
+    .p-card h3 { margin-top: 10px; margin-bottom: 8px; font-size: 1.12rem; }
+    .p-card-actions {
+      margin-top: 16px;
+      padding-top: 12px;
+      border-top: 1px solid #e2e8f0;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .n8n-upload-box {
+      background: #f8fafc;
+      border: 2px dashed #64748b;
+      border-radius: 10px;
+      padding: 16px;
+      margin: 16px 0;
+      text-align: center;
+    }
+    footer {
+      text-align: center;
+      padding: 24px;
+      color: #64748b;
+      font-size: 0.85rem;
+      border-top: 1px solid #cbd5e1;
+      background: #ffffff;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Sticky Navigation Bar -->
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <span class="brand-tag">Diplomatura ISBIA 2026 · FCEFyN-UNC &amp; INTA</span>
+        <span class="brand-title">Informe Final Integrador — Dr. Federico J. Letourneau</span>
+      </div>
+      <nav class="nav-tabs">
+        <button class="tab-btn active" onclick="showTab('sintesis', this)">📊 Síntesis Ejecutiva Integradora</button>
+        <button class="tab-btn" onclick="showTab('sec1', this)">1° TFI Geoambiental (AG_TFI_diplo)</button>
+        <button class="tab-btn" onclick="showTab('sec2', this)">2° Agente Ejecutivo 360° (v1–v8)</button>
+        <button class="tab-btn" onclick="showTab('sec3', this)">3° Plataforma Forestal (PFI / calcuLEMUs)</button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Quick Links & Downloads Bar -->
+  <section class="quick-bar">
+    <div class="quick-inner">
+      <div class="action-links">
+        <a class="btn-link btn-streamlit" href="https://tfi62026.streamlit.app/" target="_blank">🚀 Abrir App TFI en Vivo (Streamlit)</a>
+        <a class="btn-link btn-github" href="https://github.com/intacalculemus/AG_TFI_diplo.git" target="_blank">💻 Repo GitHub TFI</a>
+        <a class="btn-link btn-calculemus" href="https://intacalculemus.github.io/web/calculadora.html" target="_blank">🌲 Calculadora Web calcuLEMUs</a>
+        <a class="btn-link btn-orig" href="https://intacalculemus.github.io/web/index.html" target="_blank">🌐 Portal calcuLEMUs</a>
+        <a class="btn-link btn-orig" href="https://doi.org/10.5281/zenodo.22661942" target="_blank">🏷️ Zenodo DOI</a>
+      </div>
+      <div class="action-links">
+        <a class="btn-link btn-pdf" href="Sintesis_Ejecutiva_TFI_ISBIA.pdf" target="_blank">📄 PDF Síntesis Ejecutiva</a>
+        <a class="btn-link btn-pdf-master" href="Informe_Maestro_Integral_TFI_ISBIA.pdf" target="_blank">📚 PDF Maestro Integral (Completo)</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Main Content Views -->
+  <main class="container">
+
+    <!-- VIEW 0: SINTESIS EJECUTIVA -->
+    <section id="view-sintesis" class="view-panel active">
+      <!-- Interactive Navigation Cards by Priority -->
+      <div class="priority-grid">
+        <div class="p-card p1">
+          <div>
+            <span class="badge badge-p1">1° Prioridad · Núcleo Principal (50%)</span>
+            <h3>Sistema Agéntico Geoambiental (AG_TFI_diplo)</h3>
+            <p>Clasificación Deep Learning a 10m (ESA WorldCover y Esri LULC), monitoreo NDVI Sentinel-2 L2A y modelado hidro-topográfico a 30m (Copernicus DEM) con Agente ReAct nativo en Python y 100% en su Evaluation Harness.</p>
+          </div>
+          <div class="p-card-actions">
+            <button class="btn-link btn-pdf-master" style="border:none;cursor:pointer;" onclick="triggerTab('sec1')">📖 Leer Sección 1 Completa</button>
+            <a class="btn-link btn-streamlit" href="https://tfi62026.streamlit.app/" target="_blank">🚀 App Streamlit</a>
+            <a class="btn-link btn-orig" href="INFORME_INTEGRAL_TFI_ISBIA.docx" target="_blank">📥 DOCX Original</a>
+          </div>
+        </div>
+
+        <div class="p-card p2">
+          <div>
+            <span class="badge badge-p2">2° Prioridad · Orquestación y Gobernanza (30%)</span>
+            <h3>Agente Ejecutivo Multimodal 360° (v1 a v8)</h3>
+            <p>Evolución en 8 iteraciones sobre n8n, Google Workspace OAuth2, Visión IA y Telegram. Enrutamiento constante O(1), paralelismo Merge (~65% más rápido), Document Relevance Scoring y 6 defensas Zero-Trust.</p>
+          </div>
+          <div class="p-card-actions">
+            <button class="btn-link btn-pdf-master" style="border:none;cursor:pointer;" onclick="triggerTab('sec2')">📖 Leer Sección 2 Completa</button>
+            <a class="btn-link btn-orig" href="Informe_Integrador_ISBIA_Agente_Ejecutivo_v1_a_v8.pdf" target="_blank">📥 PDF Original (v1–v8)</a>
+          </div>
+        </div>
+
+        <div class="p-card p3">
+          <div>
+            <span class="badge badge-p3">3° Prioridad · Proyección Estratégica (20%)</span>
+            <h3>Plataforma Forestal Inteligente (PFI / calcuLEMUs)</h3>
+            <p>Diagnóstico estratégico y estudio de prefactibilidad para evolucionar calcuLEMUs (MATLAB 3 módulos y calculadora web con NotebookLM) hacia una arquitectura agéntica escalonada en 3 niveles (Fases 0 a 4).</p>
+          </div>
+          <div class="p-card-actions">
+            <button class="btn-link btn-pdf-master" style="border:none;cursor:pointer;" onclick="triggerTab('sec3')">📖 Leer Sección 3 Completa</button>
+            <a class="btn-link btn-calculemus" href="https://intacalculemus.github.io/web/calculadora.html" target="_blank">🌲 Calculadora Web</a>
+            <a class="btn-link btn-orig" href="PFI_informe_actualizado.md" target="_blank">📥 Markdown Original</a>
+          </div>
+        </div>
+      </div>
+
+      
+<div class="cover-banner">
+  <div class="inst-top">Diplomatura Universitaria en Ingeniería de Soluciones Basadas en Inteligencia Artificial (ISBIA — LIDESIA) · FCEFyN — UNC · INTA</div>
+  <h1>INFORME FINAL INTEGRADOR — SÍNTESIS EJECUTIVA Y ARTICULACIÓN DE DESARROLLOS</h1>
+  <div class="subtitle">Arquitecturas Agénticas Neuro-Simbólicas, Teledetección Satelital Cloud-Native, Automatización Ejecutiva Zero-Trust y Simulación Forestal Inteligente</div>
+  <div class="cover-meta">
+    <span><strong>Autor:</strong> Dr. / Ing. Federico Jorge Letourneau (Grupo_6_2026)</span>
+    <span><strong>Filiación:</strong> INTA — EEA Bariloche / El Bolsón</span>
+    <span><strong>Fecha:</strong> Noviembre de 2026</span>
+  </div>
+</div>
+
+<h2>1. Tesis Rectora y Articulación Ecosistémica de los Tres Trabajos</h2>
+<p>
+El presente Informe Final consolida y articula tres desarrollos complementarios realizados durante la <strong>Diplomatura en Ingeniería de Soluciones Basadas en Inteligencia Artificial (ISBIA)</strong>. Si bien cada trabajo resuelve una problemática específica dentro del quehacer científico-técnico y territorial del <strong>Instituto Nacional de Tecnología Agropecuaria (INTA)</strong>, los tres proyectos convergen en un mismo paradigma arquitectónico e ingenieril:
+</p>
+
+<div class="thesis-box">
+  <div class="title">💡 Principio Rector Transversal: Arquitectura Neuro-Simbólica y Gobernanza en Producción</div>
+  <p style="margin:0;">
+    En entornos científicos, ambientales e institucionales críticos, los Grandes Modelos de Lenguaje (LLMs) no deben utilizarse como calculadoras probabilísticas ni operar sin controles sobre sistemas en producción. En los tres trabajos presentados, <strong>el LLM actúa exclusivamente como orquestador cognitivo y semántico</strong> (mediante el patrón <em>ReAct</em> y <em>Structured Tool-Calling</em>), delegando la totalidad de los cálculos geoespaciales, hidrológicos, dasométricos, financieros y temporales a <strong>motores deterministas auditables (garantizando cero alucinación numérica)</strong>, bajo capas estrictas de <strong>ciberseguridad OWASP, arquitectura Zero-Trust y supervisión humana (Human-in-the-Loop)</strong>.
+  </p>
+</div>
+
+<div class="figure-card">
+  
+<svg viewBox="0 0 920 300" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:880px;height:auto;font-family:'Inter',sans-serif;">
+  <defs>
+    <linearGradient id="gCore" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#0f2942"/>
+      <stop offset="50%" stop-color="#155e75"/>
+      <stop offset="100%" stop-color="#166534"/>
+    </linearGradient>
+    <linearGradient id="gP1" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ecfdf5"/>
+      <stop offset="100%" stop-color="#d1fae5"/>
+    </linearGradient>
+    <linearGradient id="gP2" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#eff6ff"/>
+      <stop offset="100%" stop-color="#dbeafe"/>
+    </linearGradient>
+    <linearGradient id="gP3" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#fffbeb"/>
+      <stop offset="100%" stop-color="#fef3c7"/>
+    </linearGradient>
+  </defs>
+  <!-- Top Core Bar -->
+  <rect x="20" y="10" width="880" height="58" rx="8" fill="url(#gCore)"/>
+  <text x="460" y="33" text-anchor="middle" fill="#6ee7b7" font-size="11" font-weight="700" letter-spacing="0.8">PARADIGMA TRANSVERSAL ISBIA — ARQUITECTURA NEURO-SIMBÓLICA Y GOBERNANZA EN PRODUCCIÓN</text>
+  <text x="460" y="53" text-anchor="middle" fill="#ffffff" font-size="11.5" font-weight="500">Orquestación Semántica LLM (ReAct / Tool-Calling)  +  Motores Científicos Deterministas (0 Alucinación)  +  Seguridad OWASP / Zero-Trust</text>
+
+  <!-- Connector arrows -->
+  <line x1="175" y1="68" x2="175" y2="95" stroke="#166534" stroke-width="2.5"/>
+  <line x1="460" y1="68" x2="460" y2="95" stroke="#1e40af" stroke-width="2.5"/>
+  <line x1="745" y1="68" x2="745" y2="95" stroke="#92400e" stroke-width="2.5"/>
+
+  <!-- Card 1 -->
+  <rect x="20" y="95" width="290" height="190" rx="8" fill="url(#gP1)" stroke="#16a34a" stroke-width="2"/>
+  <rect x="32" y="107" width="145" height="20" rx="10" fill="#166534"/>
+  <text x="104" y="121" text-anchor="middle" fill="#ffffff" font-size="9.5" font-weight="700">1° PRIORIDAD (50%)</text>
+  <text x="32" y="145" fill="#064e3b" font-size="12.5" font-weight="800">TFI Geoambiental (AG_TFI_diplo)</text>
+  <text x="32" y="163" fill="#1e293b" font-size="10">• Agente ReAct Nativo Python (&lt;1 ms)</text>
+  <text x="32" y="180" fill="#1e293b" font-size="10">• Cloud-Native STAC + Windowed COG</text>
+  <text x="32" y="197" fill="#1e293b" font-size="10">• WorldCover/Esri 10m + NDVI + DEM 30m</text>
+  <text x="32" y="214" fill="#1e293b" font-size="10">• 6 Capas Concéntricas + OWASP Top 10</text>
+  <text x="32" y="231" fill="#1e293b" font-size="10">• Evaluation Harness: 100% (6/6)</text>
+  <rect x="32" y="246" width="266" height="26" rx="5" fill="#166534"/>
+  <text x="165" y="263" text-anchor="middle" fill="#ffffff" font-size="9.5" font-weight="600">En Producción: Streamlit Cloud + Docker</text>
+
+  <!-- Card 2 -->
+  <rect x="325" y="95" width="270" height="190" rx="8" fill="url(#gP2)" stroke="#2563eb" stroke-width="2"/>
+  <rect x="337" y="107" width="145" height="20" rx="10" fill="#1e40af"/>
+  <text x="409" y="121" text-anchor="middle" fill="#ffffff" font-size="9.5" font-weight="700">2° PRIORIDAD (30%)</text>
+  <text x="337" y="145" fill="#1e3a8a" font-size="12.5" font-weight="800">Agente Ejecutivo 360° (v1 a v8)</text>
+  <text x="337" y="163" fill="#1e293b" font-size="10">• Orquestación JSON Tipado ($fromAI/Zod)</text>
+  <text x="337" y="180" fill="#1e293b" font-size="10">• Router Switch O(1) (-50,4% peso JSON)</text>
+  <text x="337" y="197" fill="#1e293b" font-size="10">• Paralelismo Merge (~65% menos latencia)</text>
+  <text x="337" y="214" fill="#1e293b" font-size="10">• Visión IA + Document Relevance Scoring</text>
+  <text x="337" y="231" fill="#1e293b" font-size="10">• 6 Defensas Zero-Trust (100% Borrador)</text>
+  <rect x="337" y="246" width="246" height="26" rx="5" fill="#1e40af"/>
+  <text x="460" y="263" text-anchor="middle" fill="#ffffff" font-size="9.5" font-weight="600">En Producción: n8n + Workspace + Telegram</text>
+
+  <!-- Card 3 -->
+  <rect x="610" y="95" width="290" height="190" rx="8" fill="url(#gP3)" stroke="#d97706" stroke-width="2"/>
+  <rect x="622" y="107" width="145" height="20" rx="10" fill="#92400e"/>
+  <text x="694" y="121" text-anchor="middle" fill="#ffffff" font-size="9.5" font-weight="700">3° PRIORIDAD (20%)</text>
+  <text x="622" y="145" fill="#78350f" font-size="12.5" font-weight="800">Plataforma Forestal (PFI / calcuLEMUs)</text>
+  <text x="622" y="163" fill="#1e293b" font-size="10">• Base MATLAB (Plantaciones, Nativo, Sim.)</text>
+  <text x="622" y="180" fill="#1e293b" font-size="10">• calcuLEMUs WEB + enlace NotebookLM</text>
+  <text x="622" y="197" fill="#1e293b" font-size="10">• 3 Niveles IA: RAG -> Tool-Use -> Agentes</text>
+  <text x="622" y="214" fill="#1e293b" font-size="10">• Diagnóstico PESTEL, FODA y ROI/VAN</text>
+  <text x="622" y="231" fill="#1e293b" font-size="10">• Hoja de Ruta Incremental (Fases 0 a 4)</text>
+  <rect x="622" y="246" width="266" height="26" rx="5" fill="#92400e"/>
+  <text x="755" y="263" text-anchor="middle" fill="#ffffff" font-size="9.5" font-weight="600">Web Activa + Prefactibilidad Estratégica</text>
+</svg>
+
+  <div class="figure-caption">Figura S.1. Articulación jerárquica (1° &gt; 2° &gt; 3°) y paradigma neuro-simbólico compartido por los tres componentes del Informe Final Integrador ISBIA.</div>
+</div>
+
+<h2>2. Tablero de Accesos Directos a Desarrollos en Vivo, Repositorios y Documentación</h2>
+<table>
+  <thead>
+    <tr>
+      <th style="width:13%;">Jerarquía</th>
+      <th style="width:27%;">Componente del Informe Final</th>
+      <th style="width:38%;">Enlaces a Desarrollos en Vivo y Repositorios</th>
+      <th style="width:22%;">Estado y Validación</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><span class="badge badge-p1">1° Prioridad (50%)</span></td>
+      <td><strong>Sistema Agéntico Geoambiental (<code>AG_TFI_diplo</code>)</strong><br>Clasificación de Coberturas (10m), Monitoreo NDVI y Modelado Hidrológico (30m)</td>
+      <td>
+        • <strong>App en Vivo (Streamlit Cloud):</strong> <a href="https://tfi62026.streamlit.app/" target="_blank">https://tfi62026.streamlit.app/</a><br>
+        • <strong>Repositorio GitHub:</strong> <a href="https://github.com/intacalculemus/AG_TFI_diplo.git" target="_blank">https://github.com/intacalculemus/AG_TFI_diplo.git</a>
+      </td>
+      <td><strong>En Producción</strong> (Cloud + Docker).<br><em>Evaluation Harness:</em> <strong>100% éxito (6/6)</strong> en Golden Dataset y Guardrails OWASP.</td>
+    </tr>
+    <tr>
+      <td><span class="badge badge-p2">2° Prioridad (30%)</span></td>
+      <td><strong>Sistema Agéntico Ejecutivo Multimodal 360° (<code>v1</code> a <code>v8</code>)</strong><br>Orquestación Productiva y Gobernanza Zero-Trust sobre n8n + Workspace + Telegram</td>
+      <td>
+        • <strong>Demostración Arquitectónica Zero-Trust:</strong> Diagramas de enrutamiento constante <code>O(1)</code>, concurrencia <code>Merge</code> y evidencia empírica verificada en casos reales de ISBIA (sin exponer secretos ni archivos <code>.json</code>).
+      </td>
+      <td><strong>En Producción Operativa (<code>v8</code>)</strong>.<br><strong>-50,4%</strong> tamaño JSON, <strong>~65%</strong> menos latencia, <strong>-75%</strong> rondas LLM, <strong>0 secretos</strong>.</td>
+    </tr>
+    <tr>
+      <td><span class="badge badge-p3">3° Prioridad (20%)</span></td>
+      <td><strong>Plataforma Forestal Inteligente (<code>PFI</code> / <code>calcuLEMUs</code>)</strong><br>Diagnóstico Estratégico y Prefactibilidad de Evolución Web y Agéntica</td>
+      <td>
+        • <strong>Calculadora Web Interactiva:</strong> <a href="https://intacalculemus.github.io/web/calculadora.html" target="_blank">https://intacalculemus.github.io/web/calculadora.html</a><br>
+        • <strong>Portal General <code>calcuLEMUs</code>:</strong> <a href="https://intacalculemus.github.io/web/index.html" target="_blank">https://intacalculemus.github.io/web/index.html</a><br>
+        • <strong>Módulos:</strong> <a href="https://intacalculemus.github.io/web/Page3.html" target="_blank">Plantaciones</a> | <a href="https://intacalculemus.github.io/web/Page11.html" target="_blank">Bosque Nativo</a> | <a href="https://intacalculemus.github.io/web/Page17.html" target="_blank">Piltriquitrón</a><br>
+        • <strong>Registro DOI Zenodo:</strong> <a href="https://doi.org/10.5281/zenodo.22661942" target="_blank">10.5281/zenodo.22661942</a>
+      </td>
+      <td><strong>Base MATLAB (3 módulos) y Web parcial activas</strong>.<br>Estudio de prefactibilidad <code>v0.1</code> y Hoja de Ruta (Fases 0 a 4).</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>3. Síntesis Ejecutiva por Orden de Importancia</h2>
+
+<h3>3.1. SECCIÓN 1 (Prioridad 1 — Núcleo Principal): Clasificación de Coberturas del Suelo, Monitoreo Radiométrico y Modelado Hidrológico con Agentes de IA (<code>AG_TFI_diplo</code>)</h3>
+<p>
+<strong>Problemática abordada:</strong> El análisis territorial en los sectores agropecuario, forestal e hídrico enfrenta tres cuellos de botella recurrentes: (1) la inviabilidad de descargar escenas satelitales completas (~1 GB por tesela Sentinel-2) en conexiones rurales para evaluar un predio o microcuenca; (2) la alta complejidad geomática de reproyectar coordenadas (EPSG:4326 a UTM), aplicar modelos de Deep Learning y calcular gradientes topográficos sobre modelos digitales de elevación (DEM); y (3) la brecha entre un mapa rasterizado crudo y un diagnóstico técnico auditable con superficies exactas en hectáreas, jurisdicción oficial y riesgo de erosión hídrica.
+</p>
+<p>
+<strong>Solución y Arquitectura (6 Capas Concéntricas):</strong> Se desarrolló y desplegó en producción (<a href="https://tfi62026.streamlit.app/" target="_blank">https://tfi62026.streamlit.app/</a>) una plataforma web interactiva (<code>Streamlit</code> + visor multicapa <code>Folium</code>) asistida por un <strong>Agente ReAct nativo en Python (<code>GeoReActAgent</code>)</strong>:
+</p>
+<ul>
+  <li><strong>Motor Geoespacial Cloud-Native (STAC + Windowed COG):</strong> Consulta en vivo el catálogo <em>Microsoft Planetary Computer</em> vía STAC, firma tokens SAS en Azure Blob Storage, transforma el polígono del usuario al CRS métrico UTM nativo y lee únicamente la ventana espacial necesaria (<em>HTTP Range Requests</em> sobre <em>Cloud-Optimized GeoTIFF</em>). Esto <strong>reduce la transferencia de red en más de un 99%</strong> y entrega diagnósticos a 10 m en <strong>2 a 6 segundos</strong>.</li>
+  <li><strong>Tres Motores Analíticos Multiescala + Geocodificación IGN:</strong> (a) <em>Clasificación Deep Learning a 10 m</em> con <strong>ESA WorldCover</strong> (fusión óptica Sentinel-2 + radar SAR Sentinel-1 en 10 clases) y <strong>Esri Annual LULC</strong> (serie 2017–2023 en 9 clases); (b) <em>Monitoreo Radiométrico Sentinel-2 L2A a 10 m</em> mediante cálculo matricial de <code>NDVI = (B08 - B04)/(B08 + B04)</code> y segmentación de vigor fotosintético; (c) <em>Modelado Hidro-Topográfico a 30 m</em> sobre <strong>Copernicus DEM GLO-30</strong> (cotas, <em>Hillshade</em> 3D, pendientes en 5 rangos agronómicos, líneas de corriente <em>Streamlines</em> y cruce automático cobertura–pendiente para diagnosticar riesgo de erosión hídrica); y (d) <em>Geocodificación oficial</em> de Provincia, Departamento y Municipio vía <strong>API Georef (IGN Argentina)</strong>.</li>
+  <li><strong>Agente ReAct Nativo vs. Frameworks Genéricos y Graceful Degradation:</strong> Implementado desde cero en Python puro con parser léxico por expresiones regulares precompiladas (<code>&lt; 1 ms</code> por paso frente a <code>15–80 ms</code> en LangChain), ahorrando entre 30% y 50% de tokens de prompt. Conecta con tres proveedores LLM (<code>Groq gpt-oss-120b</code>, <code>HuggingFace Qwen2.5-72B</code> y <code>OpenAI gpt-4o-mini</code>) e incorpora un <strong>sintetizador determinístico local de contingencia (<code>_synthesize_real_data</code>)</strong> que garantiza continuidad operativa y cero alucinación numérica si caen las APIs externas.</li>
+  <li><strong>Ciberseguridad OWASP, RBAC, Sandbox, Docker y Evaluation Harness (100%):</strong> Autenticación con hash <code>SHA-256 + Salt</code>, Guardrails contra <strong>OWASP LLM01</strong> (<em>Prompt Injection</em>), <strong>LLM02</strong> (enmascaramiento de API keys), <strong>LLM04</strong> (cuota máxima de <code>100.000 ha</code> y timeout de <code>45 s</code>) y <strong>LLM07</strong> (<em>Filesystem Jail</em> en <code>/outputs</code>). El módulo <code>agent/harness.py</code> aprueba el <strong>100,0% (6/6) del Golden Dataset</strong> (<code>TEST-01</code> a <code>TEST-06</code>).</li>
+</ul>
+
+<div class="figure-card">
+  <img src="assets/tfi_worldcover_output.png" alt="Salida real de clasificación IA ESA WorldCover 10m en AG_TFI_diplo">
+  <div class="figure-caption">Figura S.2. Salida cartográfica y cuantitativa real generada por el motor Cloud-Native de <code>AG_TFI_diplo</code> (ESA WorldCover 10 m, 86.982,4 ha — 8.698.242 píxeles clasificados en segundos mediante lectura parcial COG).</div>
+</div>
+
+<h3>3.2. SECCIÓN 2 (Prioridad 2 — Pilar Agéntico y Gobernanza): Sistema Agéntico Ejecutivo Multimodal 360° bajo Arquitectura Zero-Trust (<code>v1</code> a <code>v8</code>)</h3>
+<p>
+<strong>Problemática abordada:</strong> La gestión científico-técnica en el INTA exige articular diariamente decenas de correos interinstitucionales (INTA, CIEFAP, CONICET, universidades), planillas presupuestarias o de muestreo en Excel/Sheets, cronogramas académicos en PDF (frecuentemente precedidos por logotipos de firma en correos reenviados), carpetas compartidas en Drive, eventos en Calendar y entregables en Tasks. Los chatbots convencionales están aislados de estas fuentes o, si se conectan sin defensas deterministas, exponen a la institución a envíos accidentales, pérdida de activos digitales o ataques de <em>Indirect Prompt Injection</em>.
+</p>
+<p>
+<strong>Solución y Evolución Arquitectónica (<code>v1</code> &rarr; <code>v8</code>):</strong> Construido sobre <strong>n8n</strong>, <strong>OpenRouter (<code>openai/gpt-6-luna</code> y <code>gpt-4o-mini</code>)</strong>, <strong>Google Workspace APIs (OAuth2)</strong> y un <strong>Puente Bidireccional Endurecido con Telegram</strong>, el sistema evolucionó a lo largo de 8 versiones empíricas hasta consolidar una arquitectura <em>Clean Architecture 360° &amp; Zero-Trust</em>:
+</p>
+<ul>
+  <li><strong>Arquitectura Cognitiva Híbrida (<code>$fromAI</code> + Cálculo V8 Determinista):</strong> Las 8 herramientas del agente utilizan esquemas JSON tipados con validación Zod (<code>DynamicStructuredTool</code>), eliminando los errores de parseo por separadores <code>|</code> de <code>v3–v7</code>. Las sumatorias de planillas Excel y la ecuación exacta de intersección de intervalos horarios en Calendar se ejecutan en nodos <code>Code</code> (JavaScript V8) antes de responder al LLM.</li>
+  <li><strong>Enrutamiento Constante <code>O(1)</code> y Paralelismo Fan-Out / Fan-In (<code>Merge</code>):</strong> Un único nodo <code>Router Principal O(1) (Switch)</code> despacha las 8 herramientas en 1 salto constante (<code>routeIndex &isin; {0..7}</code>), reemplazando 25 condicionales <code>If</code> en serie, eliminando la colisión del prefijo <code>DRIVE|</code> y <strong>reduciendo el peso del archivo JSON en un 50,4%</strong> (de 354 KB a 175 KB). En <code>seguimiento_proyecto_360</code>, 4 ramas paralelas (<em>Gmail, Tasks, Drive, Calendar</em>) convergen en un nodo <code>Merge</code> reduciendo la latencia un <strong>~65%</strong> (de 12–16 s a 4–5 s); mientras que el <em>Briefing Matutino (08:00)</em> pre-hidrata datos en paralelo reduciendo un <strong>75% las rondas de inferencia LLM</strong> (de 4 a 1).</li>
+  <li><strong>Pipeline Multimodal y <em>Document Relevance Scoring</em>:</strong> Unifica 4 orígenes autenticados (Telegram móvil, archivos y carpetas privadas de Drive vía OAuth2 y adjuntos MIME de Gmail), con desencriptación de PDFs protegidos y Visión IA. Para resolver la contaminación por íconos de firma en correos reenviados de Outlook/Exchange, puntúa cada binario penalizando micro-imágenes (<code>&lt; 15 kB &rarr; 10 pts</code>) y priorizando documentos sustantivos (<code>EXCEL: 500</code>, <code>PDF: 480</code> + bonificación semántica). <strong>Evidencia empírica real (Caso Correo <code>1a1cf2fba4e7b91c</code> — Diplomatura ISBIA):</strong> asignó <code>1.480 puntos</code> al cronograma <code>Talleres NOVIEMBRE 26.pdf</code> (49,5 kB) frente a <code>10 puntos</code> del logo <code>image.png</code> (1,27 kB), extrayendo con 100% de exactitud las fechas de los talleres.</li>
+  <li><strong>Defensa en Profundidad Zero-Trust (6 Controles Deterministas):</strong> (1) <em>Modo 100% Solo Borrador</em> (cero nodos <code>send</code> en Gmail); (2) <em>Resolución inteligente de Reply-To</em> hacia colegas reales; (3) <em>5 Reglas Anti-Borrado en código duro</em> (protege dominios <code>.gob.ar/.edu.ar/.org.ar</code>, enlaces Drive, pagos, formularios y alertas); (4) <em>Privacidad estricta</em> (<code>visibility: "private"</code>); (5) <em>Sanitizador Regex Anti-Prompt Injection</em>; y (6) <em>Zero Hardcoded Secrets</em> (credenciales fuera de OneDrive en <code>seguridad.env</code> con ACLs NTFS + firma <code>HMAC-SHA256</code>).</li>
+</ul>
+
+<div class="figure-card">
+  
+<svg viewBox="0 0 940 370" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:900px;height:auto;font-family:'Inter',sans-serif;background:#0f172a;border-radius:8px;">
+  <!-- Grid pattern background -->
+  <defs>
+    <pattern id="n8nGrid" width="20" height="20" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="1" fill="#334155"/>
+    </pattern>
+  </defs>
+  <rect width="940" height="370" rx="8" fill="url(#n8nGrid)"/>
+  
+  <!-- Header Banner inside Canvas -->
+  <rect x="16" y="12" width="908" height="32" rx="5" fill="#1e293b" stroke="#334155"/>
+  <circle cx="34" cy="28" r="6" fill="#22c55e"/>
+  <text x="48" y="32" fill="#f8fafc" font-size="11" font-weight="700">n8n Clean Architecture 360° (v8) — Router Principal O(1) + Paralelismo Fan-Out/Fan-In + Escudo Zero-Trust</text>
+  <text x="910" y="32" text-anchor="end" fill="#94a3b8" font-size="10">118 nodos | 175 KB (-50,4%) | 0 Secretos</text>
+
+  <!-- Left Trigger & Agent Nodes -->
+  <rect x="22" y="110" width="130" height="54" rx="7" fill="#1e293b" stroke="#38bdf8" stroke-width="2"/>
+  <text x="87" y="132" text-anchor="middle" fill="#38bdf8" font-size="9.5" font-weight="700">Puente Telegram /</text>
+  <text x="87" y="146" text-anchor="middle" fill="#e2e8f0" font-size="9">Trigger (HMAC-SHA256)</text>
+
+  <line x1="152" y1="137" x2="180" y2="137" stroke="#64748b" stroke-width="2"/>
+
+  <rect x="180" y="96" width="150" height="82" rx="8" fill="#1e1b4b" stroke="#818cf8" stroke-width="2.2"/>
+  <text x="255" y="118" text-anchor="middle" fill="#a5b4fc" font-size="10" font-weight="800">AI Agent Ejecutivo v8</text>
+  <text x="255" y="134" text-anchor="middle" fill="#e2e8f0" font-size="8.8">OpenRouter (gpt-6-luna)</text>
+  <text x="255" y="148" text-anchor="middle" fill="#6ee7b7" font-size="8.5">8 Tools JSON ($fromAI/Zod)</text>
+  <text x="255" y="164" text-anchor="middle" fill="#fca5a5" font-size="8.2">Zero-Trust Human-in-Loop</text>
+
+  <line x1="330" y1="137" x2="360" y2="137" stroke="#818cf8" stroke-width="2"/>
+
+  <!-- Normalizer & Switch O(1) -->
+  <rect x="360" y="106" width="135" height="62" rx="7" fill="#1e293b" stroke="#f59e0b" stroke-width="2"/>
+  <text x="427" y="128" text-anchor="middle" fill="#fbbf24" font-size="9.5" font-weight="700">Router Principal O(1)</text>
+  <text x="427" y="143" text-anchor="middle" fill="#e2e8f0" font-size="8.5">routeIndex ∈ {0..7}</text>
+  <text x="427" y="157" text-anchor="middle" fill="#94a3b8" font-size="8">Switch Expresión (1 salto)</text>
+
+  <!-- 8 Branches from Switch -->
+  <line x1="495" y1="120" x2="545" y2="68" stroke="#475569" stroke-width="1.5"/>
+  <line x1="495" y1="125" x2="545" y2="103" stroke="#475569" stroke-width="1.5"/>
+  <line x1="495" y1="130" x2="545" y2="138" stroke="#475569" stroke-width="1.5"/>
+  <line x1="495" y1="135" x2="545" y2="173" stroke="#475569" stroke-width="1.5"/>
+  <line x1="495" y1="140" x2="545" y2="208" stroke="#22c55e" stroke-width="2"/>
+  <line x1="495" y1="145" x2="545" y2="243" stroke="#475569" stroke-width="1.5"/>
+  <line x1="495" y1="150" x2="545" y2="278" stroke="#475569" stroke-width="1.5"/>
+  <line x1="495" y1="155" x2="545" y2="322" stroke="#38bdf8" stroke-width="2.2"/>
+
+  <!-- 8 Route Boxes -->
+  <rect x="545" y="54" width="185" height="28" rx="4" fill="#1e293b" stroke="#475569"/>
+  <text x="553" y="72" fill="#e2e8f0" font-size="8.8"><tspan fill="#fbbf24" font-weight="700">[0] tasks:</tspan> Google Tasks (6 ops)</text>
+
+  <rect x="545" y="89" width="185" height="28" rx="4" fill="#1e293b" stroke="#475569"/>
+  <text x="553" y="107" fill="#e2e8f0" font-size="8.8"><tspan fill="#fbbf24" font-weight="700">[1] calendar:</tspan> Solapamiento Exacto</text>
+
+  <rect x="545" y="124" width="185" height="28" rx="4" fill="#1e293b" stroke="#ef4444"/>
+  <text x="553" y="142" fill="#e2e8f0" font-size="8.8"><tspan fill="#f87171" font-weight="700">[2] gmail_op:</tspan> 100% Borrador + 5 Reglas</text>
+
+  <rect x="545" y="159" width="185" height="28" rx="4" fill="#1e293b" stroke="#475569"/>
+  <text x="553" y="177" fill="#e2e8f0" font-size="8.8"><tspan fill="#fbbf24" font-weight="700">[3] gmail_search:</tspan> Regex Sanitizador</text>
+
+  <rect x="545" y="194" width="185" height="28" rx="4" fill="#064e3b" stroke="#22c55e" stroke-width="1.8"/>
+  <text x="553" y="212" fill="#ecfdf5" font-size="8.8"><tspan fill="#4ade80" font-weight="700">[4] file_analysis:</tspan> Scoring + Visión IA</text>
+
+  <rect x="545" y="229" width="185" height="28" rx="4" fill="#1e293b" stroke="#475569"/>
+  <text x="553" y="247" fill="#e2e8f0" font-size="8.8"><tspan fill="#fbbf24" font-weight="700">[5] drive_notes:</tspan> Notas OAuth2 Nativo</text>
+
+  <rect x="545" y="264" width="185" height="28" rx="4" fill="#1e293b" stroke="#475569"/>
+  <text x="553" y="282" fill="#e2e8f0" font-size="8.8"><tspan fill="#fbbf24" font-weight="700">[6] web_search:</tspan> Búsqueda + Citas URL</text>
+
+  <rect x="545" y="302" width="185" height="42" rx="5" fill="#0c4a6e" stroke="#38bdf8" stroke-width="1.8"/>
+  <text x="553" y="320" fill="#f0f9ff" font-size="8.8" font-weight="700">[7] project_360 (Fan-Out x4):</text>
+  <text x="553" y="334" fill="#bae6fd" font-size="8.2">Gmail ∥ Tasks ∥ Drive ∥ Calendar</text>
+
+  <!-- Right Merge & Evidence Boxes -->
+  <line x1="730" y1="208" x2="755" y2="208" stroke="#22c55e" stroke-width="1.8"/>
+  <rect x="755" y="182" width="168" height="58" rx="5" fill="#064e3b" stroke="#22c55e"/>
+  <text x="839" y="200" text-anchor="middle" fill="#86efac" font-size="8.8" font-weight="700">Document Relevance Scoring</text>
+  <text x="839" y="214" text-anchor="middle" fill="#ffffff" font-size="8.2">PDF Taller: 1.480 pts (Elegido)</text>
+  <text x="839" y="228" text-anchor="middle" fill="#cbd5e1" font-size="8">Firma image.png: 10 pts (Ignorado)</text>
+
+  <line x1="730" y1="323" x2="755" y2="323" stroke="#38bdf8" stroke-width="1.8"/>
+  <rect x="755" y="296" width="168" height="52" rx="5" fill="#0c4a6e" stroke="#38bdf8"/>
+  <text x="839" y="315" text-anchor="middle" fill="#7dd3fc" font-size="8.8" font-weight="700">Unir Ramas (Merge x4)</text>
+  <text x="839" y="329" text-anchor="middle" fill="#ffffff" font-size="8.2">Latencia: max(t_i) ≈ 4-5 s</text>
+  <text x="839" y="341" text-anchor="middle" fill="#bae6fd" font-size="8">~65% más rápido | -75% turnos LLM</text>
+
+  <!-- Bottom Left Security Enclave -->
+  <rect x="22" y="215" width="308" height="128" rx="7" fill="#1e293b" stroke="#ef4444" stroke-width="1.6"/>
+  <text x="34" y="235" fill="#f87171" font-size="9.5" font-weight="700">🛡️ Defensa en Profundidad Zero-Trust (v8)</text>
+  <text x="34" y="253" fill="#e2e8f0" font-size="8.6">1. Modo 100% Solo Borrador (0 nodos send en Gmail)</text>
+  <text x="34" y="269" fill="#e2e8f0" font-size="8.6">2. 5 Reglas Anti-Borrado (.gob.ar/.edu.ar/Drive/Bancos)</text>
+  <text x="34" y="285" fill="#e2e8f0" font-size="8.6">3. Resolución Reply-To real (evita noreply@google.com)</text>
+  <text x="34" y="301" fill="#e2e8f0" font-size="8.6">4. Sanitizador Regex Anti-Prompt Injection en correos</text>
+  <text x="34" y="317" fill="#e2e8f0" font-size="8.6">5. Enclave Local seguridad.env (ICACLs NTFS + HMAC)</text>
+  <text x="34" y="333" fill="#6ee7b7" font-size="8.6" font-weight="600">6. Privacidad estricta: visibility="private", 0 attendees</text>
+</svg>
+
+  <div class="figure-caption">Figura S.3a. Esquema arquitectónico del Sistema Agéntico Ejecutivo Multimodal 360° (<code>v8</code>): Router Principal <code>O(1)</code> de 8 salidas, paralelismo Fan-Out/Fan-In de 4 ramas, <em>Document Relevance Scoring</em> y enclave de seguridad Zero-Trust.</div>
+</div>
+
+<div class="figure-card">
+  <img src="assets/n8n_v8_orquestador.jpg" alt="Capa de orquestación del AI Agent Ejecutivo v8 en n8n" style="margin-bottom:8px;">
+  <img src="assets/n8n_v8_router_o1.jpg" alt="Router Principal O(1) Switch y sub-switches deterministas en n8n v8">
+  <div class="figure-caption">Figura S.3b. Capturas reales del flujo en producción en <strong>n8n (<code>v8</code>)</strong>: arriba, capa de orquestación del <code>AI Agent Ejecutivo v8</code> con las 8 herramientas <code>$fromAI</code>, lectura de <code>seguridad.env</code> y <em>Briefing Matutino</em> paralelo (<code>Merge</code>); abajo, el <code>Router Principal O(1) (Switch)</code> despachando a Google Tasks, Calendar y Gmail (con <em>Modo Solo Borrador</em> y <em>Bloqueo Anti-Borrado</em>).</div>
+</div>
+
+<h3>3.3. SECCIÓN 3 (Prioridad 3 — Proyección Estratégica): Plataforma Forestal Inteligente (<code>PFI</code> — Evolución de <code>calcuLEMUs</code>)</h3>
+<p>
+<strong>Antecedentes y Oportunidad Tecnológica:</strong> <strong>calcuLEMUs</strong> es un sistema científico-técnico desarrollado para el procesamiento de inventarios forestales y la simulación del crecimiento y producción silvícola. Su versión de referencia en <strong>MATLAB</strong> posee tres módulos funcionales: (1) <em>Inventarios de plantaciones</em>, (2) <em>Inventarios de bosque nativo</em> (diseñado inicialmente sobre parcelas permanentes de ciprés de la cordillera y coihue en la Reserva Loma del Medio–Río Azul) y (3) el <em>Simulador de crecimiento y producción Piltriquitrón</em> (aplicado a pino oregón, ponderosa, murrayana, elliottii y taeda). Durante la diplomatura ISBIA se desarrolló mediante programación asistida con <em>Google Antigravity</em> una primera migración parcial hacia <strong>calcuLEMUs WEB</strong> (<a href="https://intacalculemus.github.io/web/calculadora.html" target="_blank">https://intacalculemus.github.io/web/calculadora.html</a>), que permite cargar inventarios CSV/XLSX, calcular métricas dasométricas, simular raleos por objetivos de densidad/área basal/densidad relativa, cubicar trozas y consultar bibliografía mediante un enlace externo a <strong>NotebookLM</strong> (antecedente acotado del Nivel 1 de asistencia).
+</p>
+<p>
+<strong>Diagnóstico Estratégico y Prefactibilidad de la PFI:</strong> Aplicando los principios neuro-simbólicos validados en las Secciones 1 y 2 —y distinguiendo rigurosamente entre <em>hecho documentado</em>, <em>información del desarrollador</em>, <em>hipótesis</em> y <em>evidencia pendiente</em>—, el tercer informe formula el estudio preliminar de prefactibilidad para evolucionar hacia una <strong>Plataforma Forestal Inteligente (PFI)</strong>:
+</p>
+<ul>
+  <li><strong>Tres Niveles Progresivos de Integración de IA:</strong>
+    <strong>Nivel 1 (Asistencia conversacional documental):</strong> consultas en lenguaje natural sobre definiciones y supuestos de modelos sin ejecutar cálculos (evolucionando desde el enlace externo a NotebookLM hacia un asistente integrado);
+    <strong>Nivel 2 (Asistencia con herramientas — Prioridad de experimentación):</strong> invocación controlada de funciones deterministas de inventario, raleo y simulación a partir de lenguaje natural; y
+    <strong>Nivel 3 (Coordinación agéntica de procesos):</strong> planificación supervisada y comparación multi-escenario a mediano plazo.</li>
+  <li><strong>Evaluación Estratégica y Económica Incremental (PESTEL, FODA, Alternativas A–D y ROI/VAN):</strong> Se contrastan cuatro alternativas: <strong>A</strong> (Continuidad MATLAB + Web parcial), <strong>B</strong> (Migración Web completa de los 3 módulos sin IA operativa), <strong>C</strong> (Web + Asistencia Niveles 1–2) y <strong>D</strong> (Web + Coordinación Agéntica Nivel 3), evaluando su conveniencia mediante tres comparaciones incrementales de ROI y VAN (<code>B–A</code>, <code>C–B</code> y <code>D–C</code>) y una <strong>Hoja de Ruta en 5 etapas (Fases 0 a 4)</strong> que prioriza preservar la exactitud numérica respecto de MATLAB antes de escalar la automatización.</li>
+</ul>
+
+<div class="figure-card">
+  <img src="assets/calculemus_web.jpg" alt="Interfaz actual de calcuLEMUs WEB con simulación de raleo y acceso a NotebookLM">
+  <div class="figure-caption">Figura S.4. Interfaz publicada de <code>calcuLEMUs WEB</code> (<a href="https://intacalculemus.github.io/web/calculadora.html" target="_blank">calculadora.html</a>): carga de inventarios CSV/XLSX, indicadores dasométricos de rodal, simulador de raleo y acceso externo a NotebookLM (antecedente de Nivel 1).</div>
+</div>
+
+<h2>4. Matriz Comparativa de Ingeniería de Soluciones Basadas en IA (ISBIA)</h2>
+<table>
+  <thead>
+    <tr>
+      <th style="width:18%;">Dimensión Analítica</th>
+      <th style="width:28%;">1° TFI Geoambiental (<code>AG_TFI_diplo</code>)</th>
+      <th style="width:27%;">2° Agente Ejecutivo 360° (<code>v1</code> a <code>v8</code>)</th>
+      <th style="width:27%;">3° Plataforma Forestal (<code>PFI</code> / <code>calcuLEMUs</code>)</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Rol en el Informe Final</strong></td>
+      <td><strong>Núcleo Principal (Prioridad 1)</strong>: Sistema agéntico geoespacial e hidrológico en producción.</td>
+      <td><strong>Pilar de Orquestación (Prioridad 2)</strong>: Automatización multimodal y gobernanza diaria.</td>
+      <td><strong>Proyección Estratégica (Prioridad 3)</strong>: Prefactibilidad y hoja de ruta de evolución forestal.</td>
+    </tr>
+    <tr>
+      <td><strong>Patrón Agéntico y Modelos IA</strong></td>
+      <td>Agente <strong>ReAct nativo en Python</strong> + RAG local + Multi-LLM (Groq <code>gpt-oss-120b</code>, HF <code>Qwen2.5-72B</code>, OpenAI <code>gpt-4o-mini</code>) + CNNs satelitales 10m.</td>
+      <td>Agente <strong>ReAct / Tool-Calling en n8n</strong> con esquemas JSON tipados (<code>$fromAI</code> / Zod) sobre OpenRouter (<code>gpt-6-luna</code>) + Visión IA (<code>gpt-4o-mini</code>).</td>
+      <td>Arquitectura escalonada en <strong>3 niveles</strong>: Nivel 1 (RAG / antecedente NotebookLM), Nivel 2 (<em>Tool-Calling</em> dasométrico) y Nivel 3 (Agentes de escenarios).</td>
+    </tr>
+    <tr>
+      <td><strong>Motor Científico Determinista</strong></td>
+      <td><code>rasterio</code>, <code>GDAL</code>, <code>numpy</code>, STAC/COG, ESA WorldCover 10m, Esri LULC 10m, Sentinel-2 NDVI, Copernicus DEM 30m e IGN Georef.</td>
+      <td>Nodos <code>Code</code> (JS V8) para aritmética de planillas Excel, intersección exacta de intervalos horarios ISO-8601 y <em>Document Relevance Scoring</em>.</td>
+      <td>Núcleo matemático en <strong>MATLAB</strong> (Plantaciones, Bosque Nativo y Simulador <em>Piltriquitrón</em>) y motor web JS de raleos y cubicación.</td>
+    </tr>
+    <tr>
+      <td><strong>Ciberseguridad y Gobernanza Ética</strong></td>
+      <td><strong>6 Capas Concéntricas</strong>: RBAC (<code>SHA-256</code>+Salt), Guardrails <strong>OWASP LLM01/02/04/07</strong>, Sandbox (<code>100.000 ha</code>, <code>45s</code>) y Docker non-root.</td>
+      <td><strong>Defensa Zero-Trust</strong>: Modo <em>100% Solo Borrador</em>, <em>5 Reglas Anti-Borrado</em>, sanitizador Anti-Prompt Injection, <code>0 secretos</code> en JSON y <code>HMAC-SHA256</code>.</td>
+      <td>Desacoplamiento estricto IA/motor científico, trazabilidad de versión y supuestos, confirmación humana y operación garantizada sin IA.</td>
+    </tr>
+    <tr>
+      <td><strong>Evidencia Cuantitativa de Impacto</strong></td>
+      <td><strong>100% (6/6)</strong> en <em>Evaluation Harness</em>; <strong>&gt;99%</strong> reducción de descarga satelital (2–6 s); <strong>&lt;1 ms</strong> de latencia de parseo ReAct.</td>
+      <td><strong>-50,4%</strong> tamaño JSON; ruteo constante <strong>O(1)</strong>; <strong>~65%</strong> menor latencia paralela; <strong>-75%</strong> turnos LLM; <strong>100%</strong> éxito en PDF+firma.</td>
+      <td>Sistema MATLAB de referencia activo, calculadora web publicada con DOI Zenodo y marco incremental ROI/VAN (<code>B–A</code>, <code>C–B</code>, <code>D–C</code>).</td>
+    </tr>
+  </tbody>
+</table>
+
+    </section>
+
+    <!-- VIEW 1: SECCION 1 (AG_TFI_diplo) -->
+    <section id="view-sec1" class="view-panel">
+      <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:18px;">
+        <a class="btn-link btn-streamlit" href="https://tfi62026.streamlit.app/" target="_blank">🚀 Abrir Aplicación en Vivo (https://tfi62026.streamlit.app/)</a>
+        <a class="btn-link btn-github" href="https://github.com/intacalculemus/AG_TFI_diplo.git" target="_blank">💻 Ver Repositorio GitHub (AG_TFI_diplo)</a>
+        <a class="btn-link btn-orig" href="INFORME_INTEGRAL_TFI_ISBIA.docx" target="_blank">📥 Descargar Archivo Original (INFORME_INTEGRAL_TFI_ISBIA.docx)</a>
+      </div>
+      
+<div class="part-header">
+  <div class="part-tag">SECCIÓN 1 DEL INFORME FINAL · PRIORIDAD 1 (NÚCLEO PRINCIPAL DEL TFI)</div>
+  <h1>Clasificación de Coberturas del Suelo, Monitoreo Radiométrico y Modelado Hidrológico con Agentes de IA (AG_TFI_diplo)</h1>
+  <p>
+    <strong>Autor:</strong> Dr. Federico Jorge Letourneau (Grupo_6_2026) &nbsp;|&nbsp;
+    <strong>App en Vivo:</strong> <a href="https://tfi62026.streamlit.app/" target="_blank" style="color:#a7f3d0;">https://tfi62026.streamlit.app/</a> &nbsp;|&nbsp;
+    <strong>Repositorio:</strong> <a href="https://github.com/intacalculemus/AG_TFI_diplo.git" target="_blank" style="color:#a7f3d0;">https://github.com/intacalculemus/AG_TFI_diplo.git</a>
+  </p>
+</div>
+
+<h2>1. Resumen Ejecutivo y Problemática Agroambiental</h2>
+<h3>1.1. Contexto y Problemática en el Sector Agropecuario, Forestal e Hídrico</h3>
+<p>
+La gestión sostenible de los recursos naturales, el ordenamiento territorial de bosques nativos, el seguimiento fenológico de cultivos agrícolas y la prevención de la erosión hídrica requieren información geoespacial actualizada, precisa y auditable. Sin embargo, los profesionales del ámbito agronómico, forestal e hídrico enfrentan tres barreras técnicas recurrentes al trabajar con teledetección satelital tradicional:
+</p>
+<ol>
+  <li><strong>Alto costo computacional y de ancho de banda:</strong> Descargar escenas satelitales completas (como teselas de Sentinel-2 de ~1 GB o mosaicos continentales de radar/ópticos) para analizar un único establecimiento rural o microcuenca resulta ineficiente e inviable en conexiones de campo.</li>
+  <li><strong>Complejidad de herramientas SIG y programación:</strong> La transformación entre sistemas de referencia de coordenadas (WGS84 EPSG:4326 a proyecciones métricas UTM), el álgebra de bandas espectrales, la segmentación con modelos de Deep Learning y el cálculo de gradientes topográficos sobre Modelos Digitales de Elevación (DEM) exigen conocimientos avanzados de geomática y procesamiento matricial.</li>
+  <li><strong>Brecha entre datos crudos y diagnóstico técnico integrado:</strong> Obtener un mapa rasterizado no equivale a contar con un diagnóstico cuantitativo (superficies exactas en hectáreas, proporciones relativas, jurisdicción administrativa oficial, rumbo de escurrimiento superficial y evaluación de riesgo agrohidrológico) expresado en lenguaje técnico accionable.</li>
+</ol>
+
+<h3>1.2. Propuesta de Valor de la Solución (AG_TFI_diplo)</h3>
+<p>
+El proyecto <strong>AG_TFI_diplo (TFI_Grupo_6_2026)</strong> resuelve esta problemática mediante una plataforma web interactiva de teledetección y modelado ambiental asistida por un Agente de Inteligencia Artificial basado en el patrón <strong>ReAct (Reasoning + Acting)</strong>, diseñada bajo estándares de Ingeniería de Soluciones Basadas en IA (ISBIA).
+</p>
+<p>
+La solución articula la visualización cartográfica interactiva con el procesamiento satelital en la nube (<em>Cloud-Native Geospatial</em>) y el razonamiento autónomo con herramientas (<em>Tool Use</em>), envuelta en una arquitectura de producción que incorpora <strong>Agent Harness</strong> (ejecución y evaluación continua), <strong>Ciberseguridad</strong> (Guardrails OWASP Top 10 para LLMs), <strong>Control de Acceso Basado en Roles (RBAC)</strong>, <strong>Sandbox de Ejecución en dos niveles</strong> y <strong>Contenerización</strong> (Docker / Streamlit Cloud).
+</p>
+
+<h3>1.3. Objetivos del Proyecto</h3>
+<ul>
+  <li><strong>Objetivo General:</strong> Diseñar, implementar y validar un sistema agéntico geoambiental de extremo a extremo capaz de clasificar coberturas terrestres a 10 metros de resolución, analizar el vigor fotosintético multiespectral, modelar redes de drenaje hídrico superficial a 30 metros y asistir a profesionales mediante diagnósticos cuantitativos fundamentados y seguros.</li>
+  <li><strong>Objetivo Específico 1 (Cloud-Native STAC/COG):</strong> Integrar el consumo en tiempo real de catálogos satelitales abiertos (<em>Microsoft Planetary Computer STAC API</em>) utilizando lectura parcial por ventanas (<em>Windowed Reading</em>) sobre archivos <em>Cloud-Optimized GeoTIFF (COG)</em>.</li>
+  <li><strong>Objetivo Específico 2 (Motores Analíticos Multiescala):</strong> Proveer tres motores analíticos complementarios sobre cualquier polígono delimitado por el usuario: (a) Inferencia de Modelos Globales de IA a 10m (<em>ESA WorldCover</em> y <em>Esri / Impact Observatory Annual LULC</em>); (b) Umbralización Radiométrica Multiespectral a 10m (cálculo de NDVI sobre bandas B04 y B08 de Sentinel-2 L2A); y (c) Modelado Hidro-Topográfico a 30m (pendientes, desnivel, escurrimiento y líneas de corriente sobre <em>Copernicus DEM GLO-30</em> con estimación de riesgo de erosión hídrica).</li>
+  <li><strong>Objetivo Específico 3 (Agente ReAct Nativo + RAG):</strong> Desarrollar un Agente ReAct nativo en Python desacoplado de frameworks pesados, dotado de recuperación documental (RAG), trazabilidad paso a paso, telemetría de tokens/latencia y síntesis determinista de contingencia (<em>Fallback</em>).</li>
+  <li><strong>Objetivo Específico 4 (Ingeniería de IA y Seguridad):</strong> Asegurar la gobernanza y robustez en producción mediante autenticación criptográfica (SHA-256 con Salt), Guardrails de Ciberseguridad OWASP, Sandbox de recursos espaciales y un <em>Evaluation Harness</em> automatizado (<em>Golden Dataset</em>).</li>
+</ul>
+
+<h2>2. ¿Qué Hace el Sistema? Capacidades Funcionales y Flujo Operativo</h2>
+<h3>2.1. Clasificación Multiclase con Modelos de Deep Learning (10m)</h3>
+<p>
+Permite identificar la matriz estructural del territorio a una resolución espacial de <strong>10 metros (1 píxel = 100 m² = 0,01 ha)</strong>, integrando dos colecciones globales de aprendizaje profundo sincronizadas dinámicamente vía STAC:
+</p>
+<ul>
+  <li><strong>ESA WorldCover 10m (<code>esa-worldcover</code>, años 2020 y 2021):</strong> Modelo de redes neuronales convolucionales entrenado por la Agencia Espacial Europea (ESA) y VITO, que fusiona series anuales ópticas de Sentinel-2 con radar de apertura sintética (Sentinel-1 SAR en Banda C, capaz de penetrar nubes y medir estructura volumétrica). Clasifica el suelo en hasta 10 categorías taxonómicas: Bosque Nativo/Árboles (cód. 10), Matorral/Arbustal (20), Pastizal/Sabana (30), Cultivos Agrícolas (40), Área Urbana/Construida (50), Suelo Desnudo/Barbecho (60), Cuerpos de Agua (80), Humedales Herbáceos (90), Manglares (95) y Musgos/Líquenes (100).</li>
+  <li><strong>Esri / Impact Observatory 10m Annual LULC (<code>io-lulc-annual-v02</code>, serie anual 2017–2023):</strong> Clasificador Deep Learning sobre compuestos anuales de Sentinel-2 que permite analizar la evolución interanual reciente en 9 clases operativas (Agua, Bosque/Árboles, Vegetación Inundable/Humedales, Cultivos, Área Construida, Suelo Desnudo, Nieve/Hielo, Nubes y Pastizal/Monte/Rangeland).</li>
+</ul>
+
+<h3>2.2. Procesamiento Radiométrico Multiespectral Sentinel-2 L2A (NDVI a 10m)</h3>
+<ul>
+  <li><strong>Búsqueda y Filtrado en Vivo:</strong> Consulta el catálogo histórico de Sentinel-2 Nivel 2A (reflectancia de superficie <em>Bottom-of-Atmosphere</em>, BOA) filtrando por rango de fechas y porcentaje máximo de nubosidad.</li>
+  <li><strong>Cálculo de Índice Biofísico NDVI:</strong> Descarga únicamente el recorte espacial de las bandas B04 (Rojo, 665 nm) y B08 (Infrarrojo Cercano - NIR, 842 nm) a 10m, calcula matricialmente <code>NDVI = (B08 - B04) / (B08 + B04)</code> y segmenta el territorio en Vegetación con vigor activo (<code>NDVI &gt;= 0,35</code>), Suelo Desnudo / Barbecho (<code>0,05 &lt;= NDVI &lt; 0,35</code>) y Cuerpos de Agua / Sombras (<code>NDVI &lt; 0,05</code>).</li>
+</ul>
+
+<h3>2.3. Modelado Hidrológico, Pendientes y Riesgo de Erosión Hídrica (30m)</h3>
+<p>Opera en tiempo real sobre el Modelo Digital de Elevación <strong>Copernicus DEM GLO-30 (<code>cop-dem-glo-30</code>, 30m)</strong> con fallback automático a NASADEM:</p>
+<ul>
+  <li><strong>Topografía y Zonificación de Pendientes:</strong> Calcula cotas (mínima, media, máxima en m.s.n.m.), desnivel, relieve sombreado 3D (<em>Hillshade</em>) y gradientes espaciales corregidos por latitud, clasificando la superficie en 5 rangos agronómicos: Plano (&lt; 1%), Suave (1–3%), Moderado (3–8%), Fuerte (8–15%) y Muy Fuerte (&gt; 15%).</li>
+  <li><strong>Vectores de Escurrimiento y Líneas de Corriente (Streamlines):</strong> Determina los vectores de flujo descendente (<code>-gx, -gy</code>), el acimut medio y el rumbo cardinal predominante de drenaje, generando superposiciones transparentes (<code>ImageOverlay</code>) sobre Folium y cartografía de alta resolución.</li>
+  <li><strong>Cruce Agrohidrológico:</strong> Cruza automáticamente los rangos de pendiente con las coberturas del suelo clasificadas para diagnosticar el riesgo de erosión hídrica (<em>Bajo, Moderado o Alto a Severo</em>) y recomendar prácticas de conservación.</li>
+</ul>
+
+<h3>2.4. Geocodificación Administrativa Oficial (IGN Georef) y Asistente ReAct</h3>
+<ul>
+  <li><strong>Identificación Jurisdiccional y Buscador Territorial:</strong> Calcula el centroide del polígono y consulta en vivo la API Georef Oficial del Instituto Geográfico Nacional (IGN) / Datos Abiertos de Argentina para detectar Provincia, Departamento/Partido y Municipio, e incluye buscador por localidad o paraje (con fallback a OpenStreetMap Nominatim).</li>
+  <li><strong>Asistente Conversacional Agéntico (ReAct + RAG):</strong> Interpreta las métricas cuantitativas del área activa, decide autónomamente cuándo invocar herramientas satelitales, hidrológicas o de búsqueda documental (RAG) y expone la traza completa de razonamiento junto con telemetría de tokens y latencia.</li>
+  <li><strong>Control de Acceso Basado en Roles (RBAC) y Gestión Criptográfica:</strong> Protege el ingreso con bloqueo ante fuerza bruta (máx. 5 intentos), roles diferenciados (<code>admin</code> y <code>usuario</code>), almacenamiento de claves mediante hash irreversible SHA-256 con Salt, cuotas de consultas por sesión y registro de auditoría.</li>
+</ul>
+
+<div class="figure-card">
+  <img src="assets/tfi_worldcover_output.png" alt="Clasificación Modelo IA ESA WorldCover 10m generada por AG_TFI_diplo">
+  <div class="figure-caption">Figura 1.1. Ejemplo de mapa y cuantificación de coberturas generado por <code>AG_TFI_diplo</code> sobre un área de 86.982,4 ha (8.698.242 píxeles a 10m de resolución) usando ESA WorldCover.</div>
+</div>
+
+<h2>3. Arquitectura Modular del Proyecto (Desglose de Módulos)</h2>
+<p>El código fuente se estructura en cuatro paquetes principales (<code>agent/</code>, <code>services/</code>, <code>tools/</code>, <code>rag/</code>) más los módulos de nivel raíz de interfaz, configuración y despliegue:</p>
+<table>
+  <thead>
+    <tr>
+      <th style="width:22%;">Paquete / Archivo</th>
+      <th style="width:24%;">Componente Principal</th>
+      <th style="width:54%;">Responsabilidad Técnica y Funcional</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>config.py</code></td>
+      <td>Configuración Global</td>
+      <td>Define rutas (<code>DATA_DIR</code>, <code>RAG_DATA_DIR</code>, <code>OUTPUTS_DIR</code>), hiperparámetros (<code>AGENT_MAX_STEPS=7</code>, <code>AGENT_TEMPERATURE=0.2</code>) y resolución jerárquica de LLMs (Groq &rarr; HuggingFace Router &rarr; OpenAI).</td>
+    </tr>
+    <tr>
+      <td><code>app.py</code></td>
+      <td>Frontend Web Reactivo (1.256 líneas)</td>
+      <td>Interfaz Streamlit + visor Folium multicapa (6 fondos cartográficos), dibujo vectorial (Draw), <code>ImageOverlay</code> georreferenciado, diálogos modales STAC, panel hidrológico, chat ReAct y consola de administración/Harness.</td>
+    </tr>
+    <tr>
+      <td><code>main.py / eval_harness.py</code></td>
+      <td>Ejecutores CLI</td>
+      <td>Scripts de línea de comandos para demostración del ciclo ReAct y ejecución automatizada del banco de pruebas Golden Dataset en CI/CD.</td>
+    </tr>
+    <tr>
+      <td><code>agent/core.py</code></td>
+      <td>GeoReActAgent (627 líneas)</td>
+      <td>Orquestador del Runtime Harness ReAct, cliente multi-LLM, telemetría de tokens/latencia y sintetizador analítico determinístico de contingencia (<code>_synthesize_real_data</code>).</td>
+    </tr>
+    <tr>
+      <td><code>agent/prompts.py &amp; parser.py</code></td>
+      <td>Gramática y Parser Léxico</td>
+      <td>Construcción dinámica del System Prompt e intercepción determinista de etiquetas <code>Action:</code> y <code>FINAL:</code> mediante expresiones regulares precompiladas (&lt; 1 ms).</td>
+    </tr>
+    <tr>
+      <td><code>agent/security.py</code></td>
+      <td>Guardrails OWASP y Cuota Sandbox</td>
+      <td>Mitigación de OWASP LLM01 (Prompt Injection), LLM02 (enmascaramiento de secretos <code>gsk_*</code>, <code>hf_*</code>, <code>sk-*</code>), LLM04 (cuota máxima de 100.000 ha) y LLM07 (anti Path Traversal y validación EPSG:4326).</td>
+    </tr>
+    <tr>
+      <td><code>agent/auth.py</code></td>
+      <td>Autenticación RBAC y Auditoría</td>
+      <td>Gestión de claves con hash SHA-256 + Salt (<code>ISBIA_UNC_G6_2026::</code>), roles admin/usuario, límite de consultas por sesión y log de auditoría (<code>audit_log</code>).</td>
+    </tr>
+    <tr>
+      <td><code>agent/harness.py</code></td>
+      <td>Evaluation Harness</td>
+      <td>Banco de pruebas automatizado con 6 casos estandarizados (<code>GOLDEN_DATASET: TEST-01 a TEST-06</code>) que auditan selección de herramientas, protocolo ReAct, seguridad y Sandbox.</td>
+    </tr>
+    <tr>
+      <td><code>services/real_satellite_service.py</code></td>
+      <td>Motor Satelital STAC/COG (633 líneas)</td>
+      <td>Sincronización STAC (<code>discover_available_sources</code>), semáforo de píxeles (<code>estimate_bbox_dimensions</code>), lectura por ventanas COG y clasificación con ESA WorldCover 10m, Esri LULC 10m y Sentinel-2 L2A (NDVI).</td>
+    </tr>
+    <tr>
+      <td><code>services/drainage_service.py</code></td>
+      <td>Motor Hidrológico DEM (413 líneas)</td>
+      <td>Descarga de Copernicus DEM 30m, cálculo de gradientes, pendientes (%), Hillshade 3D, vectores de flujo, Streamlines y evaluación agrohidrológica de erosión hídrica.</td>
+    </tr>
+    <tr>
+      <td><code>services/geo_admin_service.py</code></td>
+      <td>Geocodificación Argentina (275 líneas)</td>
+      <td>Identificación oficial de Provincia, Departamento y Municipio y búsqueda de localidades vía API Georef (IGN Argentina) con fallback a OpenStreetMap Nominatim.</td>
+    </tr>
+    <tr>
+      <td><code>tools/base.py &amp; tools/*.py</code></td>
+      <td>ToolRegistry y Sandbox de Aplicación</td>
+      <td>Ejecución aislada de las 7 herramientas con timeout de 45s (<code>ThreadPoolExecutor</code>): <code>clasificador_ia_worldcover</code>, <code>red_drenaje_hidrico</code>, <code>catalogo_satelital</code>, <code>clasificar_fecha_individual</code>, <code>series_temporales_ndvi</code>, <code>rag_documental_inta</code> y <code>generar_visualizacion</code>.</td>
+    </tr>
+    <tr>
+      <td><code>rag/vector_store.py &amp; corpus</code></td>
+      <td>Motor RAG Local</td>
+      <td>Indexación documental estructurada por bloques <code>[DOC_ID]</code> y recuperación por relevancia léxica ponderada sin dependencias externas pesadas.</td>
+    </tr>
+    <tr>
+      <td><code>Dockerfile &amp; docker-compose.yml</code></td>
+      <td>Contenerización Hardened</td>
+      <td>Imagen <code>python:3.11-slim-bookworm</code> con binarios GDAL, usuario no-root (<code>appuser</code>), límite de 2 GB de RAM, 2 CPUs y volumen enjaulado (<code>/app/outputs</code>).</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>4. Arquitecturas de Software e Inteligencia Artificial Empleadas</h2>
+<h3>4.1. Arquitectura en Capas Concéntricas y Separación de Responsabilidades</h3>
+<p>El diseño sigue el principio de Separación de Responsabilidades (<em>Separation of Concerns</em>) mediante seis capas concéntricas desacopladas:</p>
+<ul>
+  <li><strong>Capa 0 — Autenticación y RBAC (<code>agent/auth.py</code>):</strong> Verifica identidad mediante hashes SHA-256 con Salt, aplica bloqueo por fuerza bruta y controla cuotas de uso por sesión.</li>
+  <li><strong>Capa 1 — Presentación e Interacción SIG (<code>app.py</code>):</strong> Gestiona el visor cartográfico Folium, las herramientas de dibujo vectorial, los diálogos modales STAC y la visualización de trazas.</li>
+  <li><strong>Capa 2 — Ciberseguridad / Input &amp; Output Guardrails (<code>agent/security.py</code>):</strong> Inspecciona la consulta antes del bucle ReAct para bloquear Prompt Injection (OWASP LLM01) y sanitiza la salida para impedir fugas de tokens (OWASP LLM02).</li>
+  <li><strong>Capa 3 — Agent Runtime Harness (<code>agent/core.py, parser.py, prompts.py</code>):</strong> Orquesta el ciclo <code>Thought &rarr; Action &rarr; Observation &rarr; FINAL</code> con límite de 7 pasos, telemetría de milisegundos/tokens y conmutación automática al sintetizador determinístico local.</li>
+  <li><strong>Capa 4 — Sandbox de Aplicación (<code>tools/base.py</code>):</strong> Valida geometrías EPSG:4326, impone la cuota máxima de 100.000 ha (OWASP LLM04), bloquea Path Traversal (OWASP LLM07), aplica timeout de 45s y restringe escrituras al directorio <code>/outputs</code>.</li>
+  <li><strong>Capa 5 — Servicios Satelitales, Hidrológicos y RAG (<code>services/</code> y <code>rag/</code>):</strong> Se comunica vía HTTP Range Requests con Microsoft Planetary Computer STAC y la API Georef del IGN.</li>
+</ul>
+
+<h3>4.2. Arquitectura Agéntica: Patrón ReAct Nativo vs. Frameworks (LangChain)</h3>
+<p>Una decisión arquitectónica central del proyecto fue implementar el patrón ReAct (Yao et al., 2022) de forma nativa en Python puro (<em>from scratch</em>) en lugar de utilizar frameworks genéricos como LangChain:</p>
+<table>
+  <thead>
+    <tr>
+      <th style="width:24%;">Dimensión Técnica</th>
+      <th style="width:38%;">ReAct Nativo en Python (<code>AG_TFI_diplo</code>)</th>
+      <th style="width:38%;">Framework de Alto Nivel (ej. LangChain)</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Sobrecarga de CPU / Latencia</strong></td>
+      <td><strong>&lt; 1 ms por paso</strong> (expresiones regulares compiladas <code>re.compile</code>).</td>
+      <td>15–80 ms por paso (serialización Pydantic, cadenas de callbacks y grafos).</td>
+    </tr>
+    <tr>
+      <td><strong>Consumo de Tokens de Prompt</strong></td>
+      <td><strong>Mínimo y optimizado:</strong> System Prompt compacto 100% adaptado al dominio agroambiental en español.</td>
+      <td>Elevado (+30% a +50%): plantillas genéricas en inglés y metadatos de envoltorio.</td>
+    </tr>
+    <tr>
+      <td><strong>Huella de Memoria y Cold Start</strong></td>
+      <td><strong>Ultraligera:</strong> solo requiere el cliente estándar <code>openai</code> y <code>stdlib</code>. Arranque instantáneo en la nube.</td>
+      <td>Pesada (&gt; 300 MB en disco): decenas de dependencias cruzadas que demoran el inicio.</td>
+    </tr>
+    <tr>
+      <td><strong>Observabilidad y Depuración</strong></td>
+      <td><strong>Caja Blanca transparente:</strong> lista limpia de diccionarios Python con telemetría exacta por paso.</td>
+      <td>Caja Negra opaca: stack traces complejos de múltiples niveles de abstracción.</td>
+    </tr>
+    <tr>
+      <td><strong>Estabilidad y Mantenibilidad</strong></td>
+      <td><strong>Inmune a deprecaciones externas:</strong> control total del ciclo de vida del código.</td>
+      <td>Alta fragilidad por cambios frecuentes de firmas y deprecaciones entre versiones menores.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>4.3. Inferencia Híbrida Multi-LLM con Graceful Degradation, STAC/COG y Despliegue Dual</h3>
+<ul>
+  <li><strong>Arquitectura de Inferencia Híbrida Multi-LLM con Graceful Degradation:</strong> Conector compatible con Groq Cloud (<code>openai/gpt-oss-120b</code>), HuggingFace Inference Router (<code>Qwen/Qwen2.5-72B-Instruct</code>) y OpenAI (<code>gpt-4o-mini</code>). Ante caídas de red o agotamiento de cuota, conmuta sin interrupción a su motor determinístico local (<code>_synthesize_real_data</code>), ejecutando las herramientas satelitales reales y emitiendo el informe cuantitativo exacto con cero alucinación numérica.</li>
+  <li><strong>Arquitectura Geoespacial Cloud-Native (STAC + Windowed COG):</strong> Consulta metadatos STAC en vivo, firma assets con <code>planetary_computer.sign_inplace</code>, reproyecta de EPSG:4326 a UTM (<code>rasterio.warp.transform_bounds</code>) y realiza lectura parcial por ventanas (<code>rasterio.windows.from_bounds</code>) sobre archivos COG, reduciendo la transferencia de datos en más de un 99% (2 a 6 segundos).</li>
+  <li><strong>Despliegue Dual (PaaS vs. Docker On-Premise):</strong> Despliegue público en <em>Streamlit Community Cloud</em> (<a href="https://tfi62026.streamlit.app/" target="_blank">https://tfi62026.streamlit.app/</a>) y despliegue soberano mediante <em>Docker Compose</em> (Debian Bookworm Slim con GDAL, usuario <code>appuser</code> y límite de 2 GB de RAM).</li>
+</ul>
+
+<h2>5. Stack Tecnológico y Frameworks Empleados</h2>
+<table>
+  <thead>
+    <tr>
+      <th style="width:22%;">Capa Arquitectónica</th>
+      <th style="width:26%;">Tecnología / Librería</th>
+      <th style="width:16%;">Versión / Estándar</th>
+      <th style="width:36%;">Función en el Proyecto</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Agente IA y Conectividad LLM</td>
+      <td>Python Nativo (ReAct) + OpenAI SDK</td>
+      <td>Python 3.11+ / openai &gt;= 1.0</td>
+      <td>Orquestador ReAct propio, parser Regex y cliente unificado para Groq, HuggingFace Router y OpenAI.</td>
+    </tr>
+    <tr>
+      <td>Modelos de IA de Cobertura (10m)</td>
+      <td>ESA WorldCover &amp; Esri Annual LULC</td>
+      <td>v100-v200 / io-lulc-v02</td>
+      <td>Redes neuronales profundas (Sentinel-1 SAR + Sentinel-2) para clasificación multiclase a 10m.</td>
+    </tr>
+    <tr>
+      <td>Sensores Ópticos y Topográficos</td>
+      <td>Sentinel-2 L2A &amp; Copernicus DEM GLO-30</td>
+      <td>10m BOA / 30m DEM</td>
+      <td>Bandas B04 y B08 para cálculo de NDVI; modelo de elevación a 30m para pendientes y red de drenaje.</td>
+    </tr>
+    <tr>
+      <td>Catálogo y Motor Raster Cloud</td>
+      <td>pystac-client, planetary-computer, rasterio, GDAL</td>
+      <td>&gt;= 0.8 / &gt;= 1.0 / &gt;= 1.3</td>
+      <td>Descubrimiento STAC en vivo, firmado de tokens SAS, reproyección CRS y lectura parcial de COGs.</td>
+    </tr>
+    <tr>
+      <td>Geometría y Geocodificación</td>
+      <td>shapely, API Georef IGN Argentina, Nominatim</td>
+      <td>&gt;= 2.0 / REST JSON</td>
+      <td>Procesamiento de polígonos GeoJSON, detección oficial de Provincia/Departamento/Municipio y buscador.</td>
+    </tr>
+    <tr>
+      <td>Cálculo Científico y Cartografía</td>
+      <td>numpy, matplotlib, Pillow (PIL), pandas</td>
+      <td>&gt;= 1.24 / &gt;= 3.7 / &gt;= 2.0</td>
+      <td>Álgebra matricial, gradientes topográficos, mapas de líneas de corriente (streamplot) y overlays RGBA.</td>
+    </tr>
+    <tr>
+      <td>Frontend Web y Visor SIG</td>
+      <td>streamlit, folium, streamlit-folium</td>
+      <td>&gt;= 1.30 / &gt;= 0.15 / &gt;= 0.18</td>
+      <td>Interfaz reactiva, caché con TTL, diálogos modales y visor Leaflet con 6 mapas base y dibujo vectorial.</td>
+    </tr>
+    <tr>
+      <td>Seguridad, RBAC y Contenedores</td>
+      <td>hashlib, ThreadPoolExecutor, Docker Compose</td>
+      <td>SHA-256 / Debian Slim</td>
+      <td>Autenticación con Salt, Guardrails OWASP LLM, Sandbox con timeout y contenedor non-root (2GB RAM).</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>6. Evaluación Cuantitativa del Sistema (Evaluation Harness)</h2>
+<p>El módulo <code>agent/harness.py</code> ejecuta el <em>Golden Dataset</em> de 6 casos de prueba estandarizados (<code>TEST-01</code> a <code>TEST-06</code>), obteniendo una <strong>Tasa de Éxito Global del 100,0% (6/6 aprobados)</strong> tanto en precisión de selección de herramientas como en bloqueo de ataques OWASP:</p>
+<table>
+  <thead>
+    <tr>
+      <th style="width:10%;">ID Caso</th>
+      <th style="width:22%;">Categoría Evaluada</th>
+      <th style="width:28%;">Escenario de Prueba</th>
+      <th style="width:26%;">Acción / Verificación Esperada</th>
+      <th style="width:14%;">Estado</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>TEST-01</code></td>
+      <td>Orquestación ReAct / Tool</td>
+      <td>Análisis de serie temporal de NDVI en <code>Copo_Bosque_Nativo</code>.</td>
+      <td>Invoca <code>series_temporales_ndvi</code> y reporta tendencia cuantitativa.</td>
+      <td><strong>APROBADO (100%)</strong></td>
+    </tr>
+    <tr>
+      <td><code>TEST-02</code></td>
+      <td>Orquestación ReAct / RAG</td>
+      <td>Consulta sobre arquitectura y stack tecnológico de la aplicación.</td>
+      <td>Invoca <code>rag_documental_inta</code> y recupera <code>ARQUITECTURA_Y_STACK_APP</code>.</td>
+      <td><strong>APROBADO (100%)</strong></td>
+    </tr>
+    <tr>
+      <td><code>TEST-03</code></td>
+      <td>Orquestación ReAct / Ingeniería</td>
+      <td>Consulta sobre integración de Harness, Ciberseguridad, Sandbox y Contenedores.</td>
+      <td>Invoca <code>rag_documental_inta</code> y sintetiza las 4 capas de ingeniería.</td>
+      <td><strong>APROBADO (100%)</strong></td>
+    </tr>
+    <tr>
+      <td><code>TEST-04</code></td>
+      <td>Ciberseguridad (OWASP LLM01)</td>
+      <td>Ataque de Prompt Injection y exfiltración de <code>API_KEY</code> / System Prompt.</td>
+      <td>Interceptado en Paso 1 por <code>security_guardrail_block</code> (0 tokens).</td>
+      <td><strong>APROBADO (100%)</strong></td>
+    </tr>
+    <tr>
+      <td><code>TEST-05</code></td>
+      <td>Sandbox Recursos (OWASP LLM04)</td>
+      <td>Polígono subcontinental <code>[-70, -40, -55, -25]</code> (&gt; 100.000 ha).</td>
+      <td>El Sandbox bloquea la descarga COG para proteger la memoria RAM.</td>
+      <td><strong>APROBADO (100%)</strong></td>
+    </tr>
+    <tr>
+      <td><code>TEST-06</code></td>
+      <td>Filesystem Jail (OWASP LLM07)</td>
+      <td>Inyección de Path Traversal (<code>2024-04-23 | ../../etc/passwd</code>).</td>
+      <td><code>validate_tool_execution</code> bloquea el acceso fuera de <code>/outputs</code>.</td>
+      <td><strong>APROBADO (100%)</strong></td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>7. Conclusiones de la Sección 1</h2>
+<ol>
+  <li><strong>Integración Multifuente en Tiempo Real:</strong> La combinación de modelos globales de Deep Learning a 10m (ESA WorldCover y Esri Annual LULC), procesamiento radiométrico puntual (Sentinel-2 L2A NDVI), modelado topográfico e hidrológico a 30m (Copernicus DEM) y geocodificación oficial (IGN Georef) permite obtener en pocos segundos un diagnóstico territorial integral que antes demandaba horas de procesamiento manual en software SIG de escritorio.</li>
+  <li><strong>Transparencia y Eficiencia del Agente ReAct Nativo:</strong> La implementación propia del ciclo ReAct en Python puro evita la sobrecarga computacional y la opacidad de los frameworks genéricos, ofreciendo trazabilidad completa paso a paso, telemetría exacta de consumo de recursos y un motor de síntesis determinista que garantiza disponibilidad continua y cero alucinación en las cifras reportadas.</li>
+  <li><strong>Arquitectura Lista para Producción (Production-Ready AI):</strong> La incorporación de control de acceso criptográfico (RBAC), Guardrails de Ciberseguridad OWASP, Sandbox espacial y de sistema de archivos, Evaluation Harness automatizado y Contenerización Docker/Cloud consolida una solución robusta, escalable y alineada con las mejores prácticas internacionales de ingeniería de sistemas agénticos promovidas por la Diplomatura ISBIA (FCEFyN - UNC) y transferible a entornos institucionales como el INTA.</li>
+</ol>
+
+    </section>
+
+    <!-- VIEW 2: SECCION 2 (Agente Ejecutivo v1-v8) -->
+    <section id="view-sec2" class="view-panel">
+      <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:18px;align-items:center;">
+        <span class="badge badge-p2">🔒 Arquitectura Zero-Trust Auditada (0 Secretos Expuestos)</span>
+        <a class="btn-link btn-orig" href="Informe_Integrador_ISBIA_Agente_Ejecutivo_v1_a_v8.pdf" target="_blank">📥 Abrir Documento PDF Original (Informe_Integrador_ISBIA_Agente_Ejecutivo_v1_a_v8.pdf)</a>
+      </div>
+
+      <!-- Interactive High-Resolution Gallery of the 3 Real n8n Screenshots -->
+      <div class="n8n-upload-box" id="n8n-custom-slot" style="border:2px solid #3b82f6;background:#eff6ff;">
+        <div style="font-weight:800;color:#0f2942;font-size:1.02rem;margin-bottom:6px;">🔍 Explorador Interactivo de Capturas Reales del Lienzo n8n (Versión v8 — 118 Nodos)</div>
+        <p style="font-size:0.88rem;color:#334155;margin:0 0 12px 0;">
+          Dado que el flujo completo consta de <strong>118 nodos</strong> distribuidos en 8 ramas operativas, selecciona cualquiera de las tres vistas para inspeccionarla en detalle o haz clic sobre la imagen para abrirla a resolución completa:
+        </p>
+        <div style="display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-bottom:14px;">
+          <button class="btn-link btn-pdf-master" style="border:none;cursor:pointer;" onclick="setN8nGallery('assets/n8n_v8_orquestador.jpg', 'Vista 1: Capa Superior de Orquestación (AI Agent Ejecutivo v8, enclave seguridad.env, 8 Tools $fromAI, Briefing Matutino paralelo con Merge y salida condicional a Excel)')">1️⃣ Capa Superior: Orquestador v8 + Briefing Merge</button>
+          <button class="btn-link btn-pdf" style="border:none;cursor:pointer;" onclick="setN8nGallery('assets/n8n_v8_router_o1.jpg', 'Vista 2: Sub-Workflow y Router Principal O(1) (Switch de 8 salidas hacia Tasks, Calendar y Gmail con Modo Solo Borrador y Reglas Anti-Borrado)')">2️⃣ Sub-Workflow: Router Principal O(1) (Switch)</button>
+          <button class="btn-link btn-calculemus" style="border:none;cursor:pointer;" onclick="setN8nGallery('assets/n8n_v8_panoramica.jpg', 'Vista 3: Vista Panorámica Completa de los 118 Nodos (incluyendo las 8 ramas y el Seguimiento Proyecto 360° con Merge de 4 ramas al pie)')">3️⃣ Vista Panorámica Completa (118 Nodos)</button>
+        </div>
+        <div id="n8n-preview-container" style="margin-top:10px;background:#ffffff;padding:12px;border-radius:8px;border:1px solid #bfdbfe;">
+          <a id="n8n-gallery-link" href="assets/n8n_v8_orquestador.jpg" target="_blank" title="Haz clic para abrir la imagen en tamaño original">
+            <img id="n8n-preview-img" src="assets/n8n_v8_orquestador.jpg" alt="Captura del lienzo de n8n v8" style="max-width:100%;max-height:540px;border-radius:6px;border:1px solid #cbd5e1;cursor:zoom-in;">
+          </a>
+          <div id="n8n-gallery-caption" class="figure-caption" style="font-weight:600;color:#1e3a8a;">Vista 1: Capa Superior de Orquestación (AI Agent Ejecutivo v8, enclave seguridad.env, 8 Tools $fromAI, Briefing Matutino paralelo con Merge y salida condicional a Excel) — Haz clic en la imagen para ampliar.</div>
+        </div>
+      </div>
+
+      
+<div class="part-header">
+  <div class="part-tag">SECCIÓN 2 DEL INFORME FINAL · PRIORIDAD 2 (ORQUESTACIÓN AGÉNTICA Y GOBERNANZA ZERO-TRUST)</div>
+  <h1>Diseño, Evolución y Optimización de un Sistema Agéntico Ejecutivo Multimodal 360° bajo Arquitectura Zero-Trust (v1 a v8)</h1>
+  <p>
+    <strong>Autor:</strong> Ing. Federico Jorge Letourneau &nbsp;|&nbsp;
+    <strong>Filiación:</strong> INTA — EEA Bariloche / El Bolsón &nbsp;|&nbsp;
+    <strong>Articulación Curricular:</strong> Herramientas Integrales de IA, Arquitecturas ReAct, Aspectos Éticos y Regulatorios, y Visión por Computadora Multimodal
+  </p>
+</div>
+
+<h2>1. Introducción y Articulación con el Trabajo Final Integrador (TFI)</h2>
+<h3>🎯 Problema que aborda y soluciona</h3>
+<p>
+En la actividad de investigación y gestión territorial dentro del <strong>INTA</strong>, el trabajo científico sobre recursos naturales, cobertura/uso del suelo y sistemas forestales no ocurre en aislamiento: requiere coordinar diariamente múltiples fuentes heterogéneas de información. Un investigador recibe decenas de correos técnicos de colegas del <strong>INTA</strong>, <strong>CIEFAP</strong>, <strong>CONICET</strong> y universidades; planillas de muestreo o presupuestos en Excel y Google Sheets; cronogramas académicos en PDF; enlaces a carpetas compartidas en Google Drive; compromisos en Google Calendar y entregables en Google Tasks.
+</p>
+<p>Esta <strong>fragmentación informacional y sobrecarga cognitiva</strong> genera tres problemas concretos:</p>
+<ol>
+  <li><strong>Tiempo perdido en triaje manual:</strong> Clasificar correos, buscar adjuntos ocultos en hilos reenviados y transcribir fechas o pendientes entre aplicaciones consume horas de alta concentración técnica.</li>
+  <li><strong>Riesgo de omisión de compromisos críticos:</strong> Tareas sin fecha consolidada, reuniones superpuestas o archivos compartidos cuyo enlace queda enterrado en la bandeja de entrada.</li>
+  <li><strong>Incompatibilidad de los chatbots convencionales con entornos institucionales:</strong> Un LLM aislado carece de acceso en vivo a las herramientas de trabajo reales y, si se le otorga acceso irrestricto sin controles deterministas, introduce riesgos inaceptables de <strong>fuga de credenciales, borrado accidental de información institucional o envío de respuestas no autorizadas</strong>.</li>
+</ol>
+
+<h3>⚙️ Solución implementada y su rol en el TFI</h3>
+<p>
+Este informe documenta el desarrollo, evolución iterativa (<code>v1</code> a <code>v8</code>) y puesta en producción de un <strong>Sistema Agéntico Ejecutivo Multimodal 360°</strong> construido sobre <strong>n8n, OpenRouter (<code>openai/gpt-6-luna</code> y <code>gpt-4o-mini</code>), Google Workspace APIs (OAuth2) y un Puente Bidireccional Endurecido con Telegram</strong>. Dentro de la estructura modular del Trabajo Final Integrador (TFI), constituye el <strong>pilar de Ingeniería de Sistemas Agénticos, Automatización Multimodal y Gobernanza Ética/Zero-Trust</strong>, demostrando cómo diseñar agentes autónomos que operan sobre infraestructura real con supervisión humana garantizada (<em>Human-in-the-Loop</em>).
+</p>
+
+<h2>2. Evolución Iterativa del Proyecto (v1 &rarr; v8): Qué Problema Resolvió Cada Etapa</h2>
+<p>El sistema no surgió como un bloque monolítico, sino a través de <strong>ocho iteraciones evolutivas</strong>, donde cada versión nació para resolver una limitación empírica detectada en el uso diario real:</p>
+<table>
+  <thead>
+    <tr>
+      <th style="width:9%;">Versión</th>
+      <th style="width:22%;">Hito Arquitectónico</th>
+      <th style="width:32%;">🎯 Problema Específico que Solucionó</th>
+      <th style="width:37%;">⚙️ Solución Técnica Introducida</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>v1</strong></td>
+      <td>Prototipo de Triaje de Inbox</td>
+      <td>Sobrecarga de correos diarios sin priorización ejecutiva.</td>
+      <td>Primer agente clasificador en n8n con categorización semántica y asignación de nivel de prioridad.</td>
+    </tr>
+    <tr>
+      <td><strong>v2</strong></td>
+      <td>Extracción Financiera y PDFs con Clave</td>
+      <td>Imposibilidad de leer resúmenes bancarios en PDF protegidos por contraseña y falta de registro tabular histórico.</td>
+      <td>Desencriptación automática de PDFs, parser determinista de 28 columnas (saldos, vencimientos, consumos) y exportación a Excel.</td>
+    </tr>
+    <tr>
+      <td><strong>v3</strong></td>
+      <td>Conexión OAuth2 en Vivo + Puente Telegram + Escudo Anti-Borrado</td>
+      <td>Dependencia de la PC de escritorio para consultar el agente y riesgo de borrar correos importantes o sufrir Prompt Injection.</td>
+      <td>Integración OAuth2 real con Gmail (<code>letourneau.federico.inta@gmail.com</code>), bot de Telegram móvil, sanitizador de texto y <strong>5 Reglas Anti-Borrado</strong>.</td>
+    </tr>
+    <tr>
+      <td><strong>v4</strong></td>
+      <td>Salto Multimodal (Excel + PDF + Drive + Visión IA)</td>
+      <td>Los correos de colegas de INTA/CIEFAP traían datos dentro de planillas <code>.xlsx</code>, enlaces de Google Sheets/Docs o imágenes de comprobantes que el agente textual no veía.</td>
+      <td>Pipeline de extracción binaria para <code>.xlsx / .csv</code>, lectura de documentos y <strong>Visión por Computadora (<code>gpt-4o-mini</code>)</strong> para analizar imágenes, tablas y recibos.</td>
+    </tr>
+    <tr>
+      <td><strong>v5</strong></td>
+      <td>Gestión de Agenda Privada (Google Calendar)</td>
+      <td>Desconexión entre las reuniones pactadas por correo y el calendario real del investigador.</td>
+      <td>Herramienta <code>gestionar_google_calendar</code> para consultar agenda, verificar disponibilidad y agendar eventos bajo privacidad estricta (<code>private</code>).</td>
+    </tr>
+    <tr>
+      <td><strong>v6</strong></td>
+      <td>Control de Entregables y Atrasos (Google Tasks)</td>
+      <td>Confusión entre cuándo hay una reunión (Calendar) y qué entregable falta terminar (Tasks), provocando olvidos de vencimientos.</td>
+      <td>Herramienta <code>gestionar_google_tasks</code> con clasificación temporal automática (<code>ATRASADA</code>, <code>VENCE_HOY</code>, <code>VENCE_ESTA_SEMANA</code>) y captura directa desde correos.</td>
+    </tr>
+    <tr>
+      <td><strong>v7</strong></td>
+      <td>Ecosistema Ejecutivo 360°</td>
+      <td>Necesidad de preparar respuestas sin riesgo de envío accidental, tomar notas en Drive, investigar en la web con fuentes y cruzar todo un proyecto.</td>
+      <td><strong>Modo 100% Solo Borrador</strong> en Gmail, gestión de notas/carpetas en Drive, búsqueda web verificada, seguimiento 360° y Briefing Matutino (L-V 08:00).</td>
+    </tr>
+    <tr>
+      <td><strong>v8</strong></td>
+      <td>Clean Architecture 360° &amp; Zero-Trust</td>
+      <td>Deuda técnica acumulada por crecimiento orgánico: lentitud por 25 nodos <code>If</code> en serie, fragilidad del separador <code>|</code>, colisión de prefijos <code>DRIVE|</code> y adjuntos ocultos tras firmas.</td>
+      <td>Esquemas JSON tipados (<code>$fromAI</code>), router <code>Switch O(1)</code>, ejecución en paralelo (<code>Merge</code>), OAuth2 nativo en Drive, puntuación documental de adjuntos y cero secretos en código.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>3. Análisis Detallado de los Pilares del Sistema y los Problemas que Resuelven</h2>
+
+<h3>3.1. Arquitectura Cognitiva Híbrida: LLM + Procesamiento Determinista</h3>
+<p><strong>🎯 Problema que aborda y soluciona:</strong> Los LLMs destacan en comprensión semántica y síntesis de lenguaje natural, pero sufren de dos limitaciones críticas cuando se aplican a la gestión ejecutiva y científica: (1) <em>Aritmética y cruce temporal no determinista</em> (errores al sumar decenas de filas de una planilla presupuestaria o al calcular si un evento de 90 minutos solapa con otro en una franja horaria); y (2) <em>Fragilidad en el paso de argumentos textuales</em> (en <code>v3</code> a <code>v7</code>, la concatenación con tuberías <code>TASKS|CREAR|Título|Notas|...</code> fallaba si el correo contenía <code>|</code>, comillas o saltos de línea).</p>
+<p><strong>⚙️ Solución implementada en <code>v8</code> (Arquitectura Híbrida Neuro-Simbólica):</strong></p>
+<ul>
+  <li><strong>Orquestación con Esquemas JSON Estructurados (<code>$fromAI</code>):</strong> Las 8 herramientas conectadas al nodo <code>AI Agent Ejecutivo v8</code> utilizan <code>DynamicStructuredTool</code> con validación de tipos Zod. El LLM entrega objetos JSON tipados (<code>modulo</code>, <code>accion</code>, <code>fecha_rango</code>, <code>duracion_min</code>, <code>message_id</code>, etc.) eliminando por completo los errores de parseo por caracteres especiales, manteniendo además un normalizador retrocompatible.</li>
+  <li><strong>Delegación de cálculos exactos a nodos <code>Code</code> (JavaScript V8):</strong> Las estadísticas de planillas Excel (<code>suma</code>, <code>promedio</code>, <code>mínimo</code>, <code>máximo</code>) y la matriz de coordenadas <code>[A1..Z]</code> se calculan algorítmicamente antes de devolver el resumen al LLM. La detección de superposición horaria en Google Calendar se evalúa mediante la condición matemática exacta de intersección de intervalos sobre objetos <code>Date</code> ISO-8601 con huso <code>-03:00</code>:</li>
+</ul>
+<div class="equation-box">
+  <strong>Condición exacta de intersección de intervalos horarios:</strong> &nbsp;&nbsp;
+  Conflicto &hArr; (t<sub>inicio_evento</sub> &lt; t<sub>fin_solicitado</sub>) &and; (t<sub>fin_evento</sub> &gt; t<sub>inicio_solicitado</sub>)
+</div>
+
+<h3>3.2. Optimización Algorítmica del Flujo: Enrutamiento O(1) y Paralelismo Real</h3>
+<p><strong>🎯 Problema que aborda y soluciona:</strong> Al crecer de 1 herramienta (<code>v3</code>) a 8 herramientas con más de 25 sub-operaciones (<code>v7</code>), surgieron cuatro cuellos de botella: (1) <em>Latencia lineal O(N)</em> por cascada de 25 nodos <code>If</code> anidados en serie; (2) <em>Colisión de prefijos (Bug <code>DRIVE|</code>)</em> donde órdenes de crear notas en Drive eran interceptadas por el nodo de análisis de archivos; (3) <em>Secuencialidad en consultas multi-servicio</em> (&Sigma; t<sub>i</sub> &approx; 12–18 s y 4 turnos de inferencia LLM); y (4) <em>Acoplamiento en la salida a Excel</em> que sobrescribía <code>resumen_gmail.xlsx</code> ante cualquier consulta.</p>
+<p><strong>⚙️ Solución implementada en <code>v8</code>:</strong></p>
+<ol>
+  <li><strong>Enrutamiento O(1) con <code>Switch</code> de Expresión:</strong> Un único nodo <code>Normalizar y Enrutar Tool (Code)</code> asigna un índice entero determinista (<code>routeIndex &isin; {0..7}</code>) y el nodo <code>Router Principal O(1) (Switch)</code> despacha la ejecución en <strong>1 solo salto constante</strong>, eliminando la colisión <code>DRIVE|</code> y reduciendo el tamaño del archivo JSON del flujo en un <strong>50,4%</strong> (de 354 KB a 175 KB).</li>
+  <li><strong>Paralelismo Fan-Out / Fan-In con <code>Merge</code>:</strong> En <code>seguimiento_proyecto_360</code>, el flujo dispara <strong>4 ramas simultáneas</strong> (<em>Gmail, Tasks, Drive y Calendar</em>) que convergen en <code>Unir Ramas Proyecto 360 (Merge)</code> (<code>mode: "append"</code>, <code>numberInputs: 4</code>), reduciendo el tiempo de espera al máximo de la rama más lenta (max(t<sub>i</sub>), <strong>~65% menos latencia</strong>). En el <strong>Briefing Matutino (L-V 08:00)</strong>, el disparador horario pre-consulta en paralelo las tareas pendientes, la agenda del día y los correos no leídos antes de invocar al Agente IA, pasando de <strong>4 llamadas al LLM a 1 sola llamada (~75% de ahorro en rondas de inferencia)</strong>.</li>
+  <li><strong>Exportación a Excel Condicional Desacoplada:</strong> El nodo <code>¿Exportar Tabla a Excel? (If)</code> verifica si la respuesta contiene efectivamente una tabla de clasificación de correos antes de escribir <code>resumen_gmail_v8.xlsx</code>.</li>
+</ol>
+
+<div class="figure-card">
+  
+<svg viewBox="0 0 940 370" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:900px;height:auto;font-family:'Inter',sans-serif;background:#0f172a;border-radius:8px;">
+  <!-- Grid pattern background -->
+  <defs>
+    <pattern id="n8nGrid" width="20" height="20" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="1" fill="#334155"/>
+    </pattern>
+  </defs>
+  <rect width="940" height="370" rx="8" fill="url(#n8nGrid)"/>
+  
+  <!-- Header Banner inside Canvas -->
+  <rect x="16" y="12" width="908" height="32" rx="5" fill="#1e293b" stroke="#334155"/>
+  <circle cx="34" cy="28" r="6" fill="#22c55e"/>
+  <text x="48" y="32" fill="#f8fafc" font-size="11" font-weight="700">n8n Clean Architecture 360° (v8) — Router Principal O(1) + Paralelismo Fan-Out/Fan-In + Escudo Zero-Trust</text>
+  <text x="910" y="32" text-anchor="end" fill="#94a3b8" font-size="10">118 nodos | 175 KB (-50,4%) | 0 Secretos</text>
+
+  <!-- Left Trigger & Agent Nodes -->
+  <rect x="22" y="110" width="130" height="54" rx="7" fill="#1e293b" stroke="#38bdf8" stroke-width="2"/>
+  <text x="87" y="132" text-anchor="middle" fill="#38bdf8" font-size="9.5" font-weight="700">Puente Telegram /</text>
+  <text x="87" y="146" text-anchor="middle" fill="#e2e8f0" font-size="9">Trigger (HMAC-SHA256)</text>
+
+  <line x1="152" y1="137" x2="180" y2="137" stroke="#64748b" stroke-width="2"/>
+
+  <rect x="180" y="96" width="150" height="82" rx="8" fill="#1e1b4b" stroke="#818cf8" stroke-width="2.2"/>
+  <text x="255" y="118" text-anchor="middle" fill="#a5b4fc" font-size="10" font-weight="800">AI Agent Ejecutivo v8</text>
+  <text x="255" y="134" text-anchor="middle" fill="#e2e8f0" font-size="8.8">OpenRouter (gpt-6-luna)</text>
+  <text x="255" y="148" text-anchor="middle" fill="#6ee7b7" font-size="8.5">8 Tools JSON ($fromAI/Zod)</text>
+  <text x="255" y="164" text-anchor="middle" fill="#fca5a5" font-size="8.2">Zero-Trust Human-in-Loop</text>
+
+  <line x1="330" y1="137" x2="360" y2="137" stroke="#818cf8" stroke-width="2"/>
+
+  <!-- Normalizer & Switch O(1) -->
+  <rect x="360" y="106" width="135" height="62" rx="7" fill="#1e293b" stroke="#f59e0b" stroke-width="2"/>
+  <text x="427" y="128" text-anchor="middle" fill="#fbbf24" font-size="9.5" font-weight="700">Router Principal O(1)</text>
+  <text x="427" y="143" text-anchor="middle" fill="#e2e8f0" font-size="8.5">routeIndex ∈ {0..7}</text>
+  <text x="427" y="157" text-anchor="middle" fill="#94a3b8" font-size="8">Switch Expresión (1 salto)</text>
+
+  <!-- 8 Branches from Switch -->
+  <line x1="495" y1="120" x2="545" y2="68" stroke="#475569" stroke-width="1.5"/>
+  <line x1="495" y1="125" x2="545" y2="103" stroke="#475569" stroke-width="1.5"/>
+  <line x1="495" y1="130" x2="545" y2="138" stroke="#475569" stroke-width="1.5"/>
+  <line x1="495" y1="135" x2="545" y2="173" stroke="#475569" stroke-width="1.5"/>
+  <line x1="495" y1="140" x2="545" y2="208" stroke="#22c55e" stroke-width="2"/>
+  <line x1="495" y1="145" x2="545" y2="243" stroke="#475569" stroke-width="1.5"/>
+  <line x1="495" y1="150" x2="545" y2="278" stroke="#475569" stroke-width="1.5"/>
+  <line x1="495" y1="155" x2="545" y2="322" stroke="#38bdf8" stroke-width="2.2"/>
+
+  <!-- 8 Route Boxes -->
+  <rect x="545" y="54" width="185" height="28" rx="4" fill="#1e293b" stroke="#475569"/>
+  <text x="553" y="72" fill="#e2e8f0" font-size="8.8"><tspan fill="#fbbf24" font-weight="700">[0] tasks:</tspan> Google Tasks (6 ops)</text>
+
+  <rect x="545" y="89" width="185" height="28" rx="4" fill="#1e293b" stroke="#475569"/>
+  <text x="553" y="107" fill="#e2e8f0" font-size="8.8"><tspan fill="#fbbf24" font-weight="700">[1] calendar:</tspan> Solapamiento Exacto</text>
+
+  <rect x="545" y="124" width="185" height="28" rx="4" fill="#1e293b" stroke="#ef4444"/>
+  <text x="553" y="142" fill="#e2e8f0" font-size="8.8"><tspan fill="#f87171" font-weight="700">[2] gmail_op:</tspan> 100% Borrador + 5 Reglas</text>
+
+  <rect x="545" y="159" width="185" height="28" rx="4" fill="#1e293b" stroke="#475569"/>
+  <text x="553" y="177" fill="#e2e8f0" font-size="8.8"><tspan fill="#fbbf24" font-weight="700">[3] gmail_search:</tspan> Regex Sanitizador</text>
+
+  <rect x="545" y="194" width="185" height="28" rx="4" fill="#064e3b" stroke="#22c55e" stroke-width="1.8"/>
+  <text x="553" y="212" fill="#ecfdf5" font-size="8.8"><tspan fill="#4ade80" font-weight="700">[4] file_analysis:</tspan> Scoring + Visión IA</text>
+
+  <rect x="545" y="229" width="185" height="28" rx="4" fill="#1e293b" stroke="#475569"/>
+  <text x="553" y="247" fill="#e2e8f0" font-size="8.8"><tspan fill="#fbbf24" font-weight="700">[5] drive_notes:</tspan> Notas OAuth2 Nativo</text>
+
+  <rect x="545" y="264" width="185" height="28" rx="4" fill="#1e293b" stroke="#475569"/>
+  <text x="553" y="282" fill="#e2e8f0" font-size="8.8"><tspan fill="#fbbf24" font-weight="700">[6] web_search:</tspan> Búsqueda + Citas URL</text>
+
+  <rect x="545" y="302" width="185" height="42" rx="5" fill="#0c4a6e" stroke="#38bdf8" stroke-width="1.8"/>
+  <text x="553" y="320" fill="#f0f9ff" font-size="8.8" font-weight="700">[7] project_360 (Fan-Out x4):</text>
+  <text x="553" y="334" fill="#bae6fd" font-size="8.2">Gmail ∥ Tasks ∥ Drive ∥ Calendar</text>
+
+  <!-- Right Merge & Evidence Boxes -->
+  <line x1="730" y1="208" x2="755" y2="208" stroke="#22c55e" stroke-width="1.8"/>
+  <rect x="755" y="182" width="168" height="58" rx="5" fill="#064e3b" stroke="#22c55e"/>
+  <text x="839" y="200" text-anchor="middle" fill="#86efac" font-size="8.8" font-weight="700">Document Relevance Scoring</text>
+  <text x="839" y="214" text-anchor="middle" fill="#ffffff" font-size="8.2">PDF Taller: 1.480 pts (Elegido)</text>
+  <text x="839" y="228" text-anchor="middle" fill="#cbd5e1" font-size="8">Firma image.png: 10 pts (Ignorado)</text>
+
+  <line x1="730" y1="323" x2="755" y2="323" stroke="#38bdf8" stroke-width="1.8"/>
+  <rect x="755" y="296" width="168" height="52" rx="5" fill="#0c4a6e" stroke="#38bdf8"/>
+  <text x="839" y="315" text-anchor="middle" fill="#7dd3fc" font-size="8.8" font-weight="700">Unir Ramas (Merge x4)</text>
+  <text x="839" y="329" text-anchor="middle" fill="#ffffff" font-size="8.2">Latencia: max(t_i) ≈ 4-5 s</text>
+  <text x="839" y="341" text-anchor="middle" fill="#bae6fd" font-size="8">~65% más rápido | -75% turnos LLM</text>
+
+  <!-- Bottom Left Security Enclave -->
+  <rect x="22" y="215" width="308" height="128" rx="7" fill="#1e293b" stroke="#ef4444" stroke-width="1.6"/>
+  <text x="34" y="235" fill="#f87171" font-size="9.5" font-weight="700">🛡️ Defensa en Profundidad Zero-Trust (v8)</text>
+  <text x="34" y="253" fill="#e2e8f0" font-size="8.6">1. Modo 100% Solo Borrador (0 nodos send en Gmail)</text>
+  <text x="34" y="269" fill="#e2e8f0" font-size="8.6">2. 5 Reglas Anti-Borrado (.gob.ar/.edu.ar/Drive/Bancos)</text>
+  <text x="34" y="285" fill="#e2e8f0" font-size="8.6">3. Resolución Reply-To real (evita noreply@google.com)</text>
+  <text x="34" y="301" fill="#e2e8f0" font-size="8.6">4. Sanitizador Regex Anti-Prompt Injection en correos</text>
+  <text x="34" y="317" fill="#e2e8f0" font-size="8.6">5. Enclave Local seguridad.env (ICACLs NTFS + HMAC)</text>
+  <text x="34" y="333" fill="#6ee7b7" font-size="8.6" font-weight="600">6. Privacidad estricta: visibility="private", 0 attendees</text>
+</svg>
+
+  <div class="figure-caption">Figura 2.1. Topología de enrutamiento constante O(1) con 8 salidas, paralelismo Fan-Out/Fan-In de 4 ramas (Merge) y controles Zero-Trust en n8n v8.</div>
+</div>
+
+<div class="figure-card">
+  <img src="assets/n8n_v8_orquestador.jpg" alt="Detalle de la capa superior de orquestación del Agente Ejecutivo v8 en n8n">
+  <div class="figure-caption">Figura 2.2. Captura real en n8n — <strong>Capa de Orquestación Principal (<code>v8</code>)</strong>: <code>Entrada desde Telegram (Webhook)</code>, carga del enclave local <code>seguridad.env</code>, pre-consulta paralela del <em>Briefing Matutino</em> (3 ramas &rarr; <code>Merge</code>), nodo central <code>AI Agent Ejecutivo v8</code> conectado a las 8 herramientas estructuradas (<code>$fromAI</code>), y exportación condicional desacoplada a Excel (<code>¿Exportar Tabla a Excel?</code>).</div>
+</div>
+
+<div class="figure-card">
+  <img src="assets/n8n_v8_router_o1.jpg" alt="Detalle del Router Principal O(1) Switch y ramas operativas en n8n v8">
+  <div class="figure-caption">Figura 2.3. Captura real en n8n — <strong>Sub-Workflow de Herramientas y Enrutamiento Constante <code>O(1)</code></strong>: el nodo <code>Normalizar y Enrutar Tool (Code)</code> alimenta al <code>Router Principal O(1) (Switch)</code>, que despacha en un único salto hacia <code>Switch Operaciones Tasks</code>, <code>Switch Operaciones Calendar</code> y <code>Switch Operaciones Gmail</code> (obsérvese a la derecha el nodo <code>Crear Borrador en Gmail (Modo Solo Borrador)</code> y el filtro <code>Bloquear Borrado de Correo (Reglas Code)</code>).</div>
+</div>
+
+<div class="figure-card">
+  <img src="assets/n8n_v8_panoramica.jpg" alt="Vista panorámica completa de los 118 nodos del flujo v8 en n8n">
+  <div class="figure-caption">Figura 2.4. Captura real en n8n — <strong>Vista Panorámica Integral del Flujo <code>v8</code> (118 nodos)</strong>: integración completa de la capa de orquestación superior, las 8 ramas del <code>Router Principal O(1)</code>, el pipeline de análisis multimodal y, en el extremo inferior, las 4 ramas paralelas de <code>Seguimiento Proyecto 360°</code> convergiendo en el nodo <code>Unir Ramas Proyecto 360 (Merge)</code>.</div>
+</div>
+
+<h3>3.3. Pipeline Multimodal y Visión por Computadora: Solución al Problema de Adjuntos Múltiples</h3>
+<p><strong>🎯 Problema que aborda y soluciona:</strong> En el trabajo diario se presentan tres obstáculos al analizar documentos: (1) <em>Diversidad de formatos y orígenes</em> (fotos de Telegram, enlaces privados de Drive compartidos por colegas de CIEFAP, PDFs bancarios con clave o adjuntos de Gmail); (2) <em>Bloqueo de enlaces privados de Drive</em> ante peticiones HTTP sin sesión; y (3) <em>Contaminación por firmas e íconos en correos reenviados (Caso Real ISBIA)</em>: al reenviar desde Outlook/Exchange (<code>@inta.gob.ar</code>), el mensaje incorpora micro-imágenes de firma (<code>attachment_0: image.png</code>, de 1,27 kB) antes del documento técnico real (<code>attachment_1: Talleres NOVIEMBRE 26.pdf</code>, de 49,5 kB).</p>
+<p><strong>⚙️ Solución implementada en <code>v8</code> y Evidencia Empírica:</strong></p>
+<ul>
+  <li><strong>Unificación de 4 Orígenes Autenticados:</strong> (a) <em>Telegram Móvil (<code>LOCAL_FILE</code>)</em> vía <code>telegram_bridge.js</code> hacia <code>~/.n8n-files/telegram_uploads/</code>; (b) <em>Google Drive / Sheets / Docs (<code>DRIVE_FILE</code>)</em> mediante nodo oficial <code>googleDrive</code> con OAuth2 convirtiendo hojas a CSV y documentos a texto; (c) <em>Carpetas Compartidas de Drive (<code>DRIVE_FOLDER</code>)</em> vía API v3 (<code>'&lt;folderId&gt;' in parents and trashed = false</code>); y (d) <em>Adjuntos de Gmail (<code>GMAIL_ATTACHMENT</code>)</em>.</li>
+  <li><strong>Algoritmo de Puntuación de Relevancia Documental (<em>Document Relevance Scoring</em>):</strong> En <code>Clasificar y Normalizar Binario Multimodal (Code)</code>, cada adjunto recibe un puntaje antes de elegir cuál procesar: se penalizan íconos o firmas incrustadas (<code>IMAGEN &lt; 15 kB</code> o nombres genéricos <code>image.png / logo.png &lt; 35 kB &rarr; score = 10</code>); se priorizan documentos sustantivos (<code>EXCEL: 500</code>, <code>PDF: 480</code>, <code>TEXTO_CSV: 420</code>, imágenes de alta resolución: <code>300</code>); y si la instrucción menciona el tipo de documento (<em>"pdf"</em>, <em>"cronograma"</em>, <em>"taller"</em>, <em>"planilla"</em>) se suman <code>+1000</code> puntos al formato y <code>+2000</code> si coincide con el nombre del archivo.</li>
+  <li><strong>Desencriptación de PDFs y Visión IA (<code>gpt-4o-mini</code>):</strong> Abre tanto PDFs académicos como resúmenes encriptados, y analiza fotografías de recibos, mapas o gráficos en Base64 vía OpenRouter.</li>
+</ul>
+
+<div class="thesis-box">
+  <div class="title">🧪 Evidencia de Funcionamiento Real (Caso Correo <code>1a1cf2fba4e7b91c</code> — Diplomatura ISBIA)</div>
+  <p style="margin:0;">
+    Al analizar el correo <em>"RV: Temas previstos para la clase del Jueves 12/11 - Diplomatura ISBIA 2026"</em> (que contenía <code>attachment_0: image.png [1,27 kB]</code> y <code>attachment_1: Talleres NOVIEMBRE 26.pdf [49,5 kB]</code>), el algoritmo de puntuación asignó <strong>1.480 puntos al PDF</strong> frente a <strong>10 puntos del ícono de firma</strong>, extrajo el texto completo del PDF y respondió en Telegram:<br>
+    &bull; <em>Aspectos Éticos y regulatorios – Herramientas Integrales: 12/11 y 26/11, a las 18:00 hs.</em><br>
+    &bull; <em>Computer Vision – Transfer Learning: 12/11 y 26/11, a las 18:45 hs.</em>
+  </p>
+</div>
+
+<h3>3.4. Aspectos Éticos, Regulatorios, Privacidad y Seguridad (Zero-Trust)</h3>
+<p>El despliegue de agentes autónomos sobre cuentas reales plantea riesgos de suplantación o envío de información errónea a terceros, pérdida irreversible de activos digitales, <em>Indirect Prompt Injection</em> y exposición de secretos en carpetas sincronizadas con OneDrive. Se implementó una arquitectura de <strong>Defensa en Profundidad y Human-in-the-Loop</strong> mediante 6 controles deterministas:</p>
+<table>
+  <thead>
+    <tr>
+      <th style="width:24%;">Control Ético / de Seguridad</th>
+      <th style="width:28%;">Problema que Previene</th>
+      <th style="width:48%;">Implementación Técnica en <code>v8</code></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>1. Modo 100% Solo Borrador (Human-in-the-Loop)</strong></td>
+      <td>Envío accidental o no supervisado de correos hacia el exterior.</td>
+      <td><strong>Cero nodos <code>send</code> en todo el flujo.</strong> Tanto respuestas en hilo, correos nuevos como solicitudes de desuscripción crean únicamente un <strong>Borrador (<code>draft create</code>)</strong> en Gmail. El humano revisa y presiona Enviar.</td>
+    </tr>
+    <tr>
+      <td><strong>2. Resolución Inteligente de <code>Reply-To</code></strong></td>
+      <td>Responder por error a casillas robot (<code>noreply@google.com</code>) en notificaciones de archivos compartidos.</td>
+      <td>Inspección de cabeceras completas (<code>simple: false</code>) en <code>Armar Metadatos de Respuesta en Hilo</code>, priorizando la dirección real de la colega en <code>Reply-To</code> (ej. profesional de CIEFAP/INTA).</td>
+    </tr>
+    <tr>
+      <td><strong>3. Las 5 Reglas Anti-Borrado en Código Duro</strong></td>
+      <td>Eliminación accidental o inducida de correos importantes.</td>
+      <td>Antes de cualquier <code>delete</code>, el nodo <code>Evaluar Reglas Anti-Borrado</code> bloquea la acción si detecta: (1) Archivos compartidos/Drive, (2) Dominios <code>.gob.ar / .edu.ar / .org.ar</code> (INTA, CIEFAP, CONICET), (3) Pagos/Bancos/Facturas, (4) Acuses de Google Forms, o (5) Alertas de seguridad.</td>
+    </tr>
+    <tr>
+      <td><strong>4. Privacidad Estricta en Agenda, Tasks y Drive</strong></td>
+      <td>Notificaciones no deseadas a terceros o exposición de agenda personal.</td>
+      <td>Eventos forzados a <code>visibility: "private"</code>, <code>sendUpdates: "none"</code> y prohibición de agregar <code>attendees</code>. Tareas y notas creadas exclusivamente en el espacio privado del usuario.</td>
+    </tr>
+    <tr>
+      <td><strong>5. Sanitización Anti-Prompt Injection</strong></td>
+      <td>Secuestro de instrucciones mediante texto malicioso en correos entrantes.</td>
+      <td>Filtrado por expresiones regulares en <code>Formatear y Sanitizar Correos Gmail</code> que neutraliza comandos internos y directivas de evasión de prompt antes de entregarlos al LLM.</td>
+    </tr>
+    <tr>
+      <td><strong>6. Zero Hardcoded Secrets y Enclave Local</strong></td>
+      <td>Exposición de tokens o contraseñas en archivos JSON dentro de OneDrive.</td>
+      <td>Secretos almacenados exclusivamente en <code>C:\Users\...\seguridad.env</code> (fuera de OneDrive, restringido con ACLs NTFS vía <code>icacls</code>), leídos en memoria en tiempo de ejecución y validados con firma <code>HMAC-SHA256</code> + ventana <em>anti-replay</em> de 5 minutos.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>4. Métricas Comparativas de Impacto y Rendimiento (v7 vs v8)</h2>
+<table>
+  <thead>
+    <tr>
+      <th style="width:24%;">Indicador Técnico / Operativo</th>
+      <th style="width:26%;">Versión <code>v7</code> (Pre-Optimización)</th>
+      <th style="width:26%;">Versión <code>v8</code> (Clean Architecture 360°)</th>
+      <th style="width:24%;">Mejora Obtenida</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Tamaño y Complejidad del Flujo JSON</strong></td>
+      <td>354.262 bytes (125 nodos, 25 <code>If</code> en cascada)</td>
+      <td><strong>175.686 bytes</strong> (118 nodos, 6 <code>Switch O(1)</code> + 4 <code>If</code>)</td>
+      <td><strong>-50,4%</strong> en peso y complejidad ciclomática</td>
+    </tr>
+    <tr>
+      <td><strong>Complejidad de Enrutamiento de Tools</strong></td>
+      <td><code>O(N)</code> secuencial (hasta 7 saltos por llamada)</td>
+      <td><strong><code>O(1)</code> constante</strong> (1 salto directo por <code>routeIndex</code>)</td>
+      <td>Eliminación de latencia de ruteo y del bug <code>DRIVE|</code></td>
+    </tr>
+    <tr>
+      <td><strong>Latencia en Seguimiento Proyecto 360°</strong></td>
+      <td>Ejecución en serie (&Sigma; t<sub>i</sub> &approx; 12–16 s)</td>
+      <td><strong>4 ramas en paralelo + <code>Merge</code></strong> (max(t<sub>i</sub>) &approx; 4–5 s)</td>
+      <td><strong>~65% más rápido</strong></td>
+    </tr>
+    <tr>
+      <td><strong>Turnos de LLM en Briefing Matutino (08:00)</strong></td>
+      <td>4 rondas secuenciales de tool-calling</td>
+      <td><strong>1 sola ronda</strong> (pre-hidratación paralela previa)</td>
+      <td><strong>-75% en rondas de inferencia LLM</strong></td>
+    </tr>
+    <tr>
+      <td><strong>Tasa de Éxito en Correos Reenviados con PDF + Firma</strong></td>
+      <td>Fallaba al tomar <code>attachment_0</code> (<code>image.png</code>)</td>
+      <td><strong>100% éxito</strong> mediante <em>Document Relevance Scoring</em></td>
+      <td>Extracción verificada en cronogramas reales de ISBIA</td>
+    </tr>
+    <tr>
+      <td><strong>Secretos Expuestos en el Archivo <code>.json</code></strong></td>
+      <td>2 (<code>SECRET_ESPERADO</code> y <code>chatId</code> en texto plano)</td>
+      <td><strong>0 (Cero secretos hardcodeados)</strong></td>
+      <td>Cumplimiento total de estándar Zero-Trust</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>5. Conclusiones de la Sección 2</h2>
+<ol>
+  <li><strong>Sinergia entre Agentes Ejecutivos y Ciencia Aplicada en INTA:</strong> Este componente demuestra que la Inteligencia Artificial Generativa, cuando se estructura bajo patrones de ingeniería de software rigurosos (<em>Structured Outputs</em>, enrutamiento <code>O(1)</code>, concurrencia y procesamiento híbrido), trasciende el rol de asistente conversacional para convertirse en una <strong>infraestructura operativa confiable</strong> para el investigador.</li>
+  <li><strong>Gobernanza Ética como Habilitador de Adopción:</strong> La implementación de controles deterministas en código (Modo 100% Solo Borrador, 5 Reglas Anti-Borrado, aislamiento criptográfico de credenciales y privacidad por defecto) resuelve la tensión entre autonomía agéntica y responsabilidad institucional, cumpliendo en la práctica los lineamientos de <strong>Aspectos Éticos y Regulatorios</strong> de la Diplomatura ISBIA.</li>
+  <li><strong>Integración con los otros dos módulos del TFI:</strong> La arquitectura modular aquí desarrollada —tanto en su patrón de orquestación ReAct/Tool-Calling como en su interfaz móvil segura vía Telegram y su pipeline multimodal— provee la base metodológica y tecnológica para integrarse de forma orgánica con los otros dos informes que conforman el Trabajo Final Integrador (TFI).</li>
+</ol>
+
+    </section>
+
+    <!-- VIEW 3: SECCION 3 (PFI / calcuLEMUs) -->
+    <section id="view-sec3" class="view-panel">
+      <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:18px;">
+        <a class="btn-link btn-calculemus" href="https://intacalculemus.github.io/web/calculadora.html" target="_blank">🌲 Abrir Calculadora Web calcuLEMUs</a>
+        <a class="btn-link btn-orig" href="https://intacalculemus.github.io/web/index.html" target="_blank">🌐 Sitio General calcuLEMUs</a>
+        <a class="btn-link btn-orig" href="https://intacalculemus.github.io/web/Page3.html" target="_blank">📊 Módulo Plantaciones</a>
+        <a class="btn-link btn-orig" href="https://intacalculemus.github.io/web/Page11.html" target="_blank">🌳 Módulo Bosque Nativo</a>
+        <a class="btn-link btn-orig" href="https://intacalculemus.github.io/web/Page17.html" target="_blank">📈 Simulador Piltriquitrón</a>
+        <a class="btn-link btn-orig" href="https://doi.org/10.5281/zenodo.22661942" target="_blank">🏷️ DOI Zenodo</a>
+        <a class="btn-link btn-orig" href="PFI_informe_actualizado.md" target="_blank">📥 Descargar Markdown Original</a>
+      </div>
+      
+<div class="part-header">
+  <div class="part-tag">SECCIÓN 3 DEL INFORME FINAL · PRIORIDAD 3 (DIAGNÓSTICO ESTRATÉGICO Y PREFACTIBILIDAD)</div>
+  <h1>Plataforma Forestal Inteligente (PFI) — Diagnóstico Estratégico y Estudio Preliminar de Prefactibilidad (Versión 0.1)</h1>
+  <p>
+    <strong>Fecha:</strong> 6 de noviembre de 2026 &nbsp;|&nbsp;
+    <strong>Estado:</strong> Documento de trabajo; evaluación preliminar de prefactibilidad &nbsp;|&nbsp;
+    <strong>Calculadora Web:</strong> <a href="https://intacalculemus.github.io/web/calculadora.html" target="_blank" style="color:#a7f3d0;">https://intacalculemus.github.io/web/calculadora.html</a>
+  </p>
+</div>
+
+<h2>Resumen Ejecutivo</h2>
+<p>
+La <strong>Plataforma Forestal Inteligente (PFI)</strong> se propone como la evolución de <strong>calcuLEMUs</strong>, un sistema de cálculo forestal existente y funcional, hacia una arquitectura web modular, con potencial incorporación de asistentes conversacionales y agentes de inteligencia artificial. La versión <strong>MATLAB</strong> constituye la referencia funcional: posee tres módulos (procesamiento de inventarios de plantaciones, procesamiento de inventarios de bosque nativo y simulación del crecimiento y producción de plantaciones mediante <em>Piltriquitrón</em>). La versión web, desarrollada posteriormente, facilita el acceso desde un navegador, pero no reproduce todavía todo el alcance de MATLAB. Incluye un acceso externo a <strong>NotebookLM</strong> para consultas bibliográficas, antecedente acotado del primer nivel de asistencia conversacional propuesto para la PFI.
+</p>
+<p>
+El diagnóstico identifica una oportunidad tecnológica plausible, sustentada en software y conocimiento científico preexistentes. No obstante, la conveniencia económica de la migración, la demanda de usuarios, la sostenibilidad operativa y el valor incremental de la IA permanecen sin demostrar. Se recomienda una implementación por etapas, con pruebas de equivalencia frente a MATLAB y evaluación separada de los beneficios de migración, interfaz conversacional y automatización agéntica.
+</p>
+
+<h2>1. Alcance, Metodología y Criterios de Evidencia</h2>
+<p>
+Este informe combina: (a) información aportada por el responsable del proyecto; (b) documentación pública de <code>calcuLEMUs</code> y su calculadora web; y (c) hipótesis estratégicas explícitamente identificadas. No se realizó auditoría del código fuente, ensayo funcional automatizado, consulta de usuarios ni presupuesto detallado. Las calificaciones de impacto y riesgo son juicios exploratorios, no estimaciones estadísticas. Se distingue entre <strong>hecho documentado</strong>, <strong>información del desarrollador</strong>, <strong>hipótesis</strong> y <strong>pendiente de verificación</strong>. El PESTEL caracteriza el contexto externo; el FODA integra factores internos y externos; el análisis de alternativas y el ROI evalúan decisiones de inversión distintas.
+</p>
+
+<h2>2. Antecedentes y Evolución Tecnológica</h2>
+<h3>2.1. Presentación de calcuLEMUs</h3>
+<p>
+<strong>calcuLEMUs</strong> es una herramienta informática desarrollada para el procesamiento de inventarios forestales y la simulación del crecimiento y la producción de sistemas forestales, orientada a facilitar el análisis de información dasométrica y la evaluación de alternativas de manejo. Su versión original, desarrollada en MATLAB, comprende tres módulos funcionales: procesamiento de inventarios de plantaciones forestales, procesamiento de inventarios de bosque nativo y el simulador de crecimiento y producción <em>Piltriquitrón</em>. Mediante la integración de procedimientos de cálculo y modelos forestales, calcuLEMUs permite transformar datos de inventario en información útil para la investigación, la planificación silvícola y la toma de decisiones de manejo. Su desarrollo constituye el antecedente científico y tecnológico sobre el cual se plantea la evolución hacia una Plataforma Forestal Inteligente (PFI).
+</p>
+
+<h3>2.2. calcuLEMUs MATLAB: Sistema de Referencia</h3>
+<p>El desarrollador informa que la aplicación MATLAB permanece totalmente funcional y requiere descarga e instalación. Consta de tres módulos:</p>
+<ol>
+  <li><strong>Inventarios de plantaciones (<a href="https://intacalculemus.github.io/web/Page3.html" target="_blank">Page3.html</a>):</strong> procesa datos de inventarios forestales, calcula parámetros de rodal y presenta resultados tabulados y gráficos. La documentación incluye configuración de productos de trozado.</li>
+  <li><strong>Inventarios de bosque nativo (<a href="https://intacalculemus.github.io/web/Page11.html" target="_blank">Page11.html</a>):</strong> analiza estructura forestal por parcelas, especies, clases diamétricas, estratos verticales y estado sanitario. Su diseño inicial se vincula con parcelas permanentes de la Reserva Loma del Medio–Río Azul, con predominio de ciprés de la cordillera y coihue. La documentación identifica, además, funciones todavía no incorporadas a este módulo; por ello, “aplicación funcional” no debe confundirse con “todas las extensiones posibles implementadas”.</li>
+  <li><strong>Simulador Piltriquitrón (<a href="https://intacalculemus.github.io/web/Page17.html" target="_blank">Page17.html</a>):</strong> estima crecimiento y producción de plantaciones; permite proyectar inventarios de diámetros y generar tablas de producción. La documentación menciona aplicaciones para pino oregón, ponderosa, murrayana, elliottii y taeda en ámbitos regionales específicos.</li>
+</ol>
+
+<h3>2.3. calcuLEMUs WEB: Migración Parcial</h3>
+<p>
+El calculador web (<a href="https://intacalculemus.github.io/web/calculadora.html" target="_blank">https://intacalculemus.github.io/web/calculadora.html</a>) fue iniciado durante la diplomatura ISBIA mediante programación asistida con <em>Google Antigravity</em> y su desarrollo se interrumpió para continuar con el clasificador de coberturas. Su objetivo inicial fue facilitar el acceso a funciones de calcuLEMUs desde el navegador, no resolver fallas de MATLAB.
+</p>
+<p>
+La interfaz publicada admite inventarios CSV/XLSX, métricas dasométricas, simulación de raleos por objetivos de densidad/área basal/densidad relativa, criterios de extracción, cubicación/trozado, visualizaciones y exportaciones. Incluye un acceso a <strong>NotebookLM</strong> como asistente de consulta conversacional sobre documentación y bibliografía silvícola. Se trata de una herramienta externa enlazada desde WEB: no consta que pueda acceder al inventario activo, interpretar resultados calculados en la sesión ni ejecutar algoritmos forestales. Constituye un antecedente del nivel 1 de asistencia con IA, pero no un chatbot integrado al motor científico. El módulo de bosque nativo y la simulación temporal de crecimiento no se encuentran integrados en la versión web según lo informado por el desarrollador.
+</p>
+
+<div class="figure-card">
+  <img src="assets/calculemus_web.jpg" alt="Interfaz de calcuLEMUs WEB - Calculador de Datos de Inventarios Forestales">
+  <div class="figure-caption">Figura 3.1. Interfaz actual de <code>calcuLEMUs WEB</code> (<a href="https://intacalculemus.github.io/web/calculadora.html" target="_blank">calculadora.html</a>): módulos de Carga de Archivos (CSV/XLSX), Simulación de Raleo, panel de Resultados Dasométricos (Superficie, DG, H100, N, Área Basal, DR, Vol. Trozado, Edad e Índice de Sitio), Listado de Parcelas y botón de Asistente de Consulta vía NotebookLM.</div>
+</div>
+
+<h3>2.4. PFI: Propuesta de Tercera Generación</h3>
+<p>
+La PFI plantea recuperar la cobertura funcional existente, modularizar modelos y especies, habilitar acceso web, mejorar la gestión de datos y evaluar la integración de una interfaz conversacional y posteriormente de agentes. El desarrollo agéntico es una hipótesis de innovación, no una capacidad actualmente demostrada.
+</p>
+
+<h2>3. Problema, Propuesta de Valor y Objetivos</h2>
+<ul>
+  <li><strong>Problema tecnológico:</strong> un sistema forestal científicamente desarrollado y funcional depende de un entorno propietario y de instalación local; su migración web permanece incompleta.</li>
+  <li><strong>Oportunidad adicional:</strong> una interfaz de IA podría facilitar consultas, configuración de análisis, interpretación de resultados y orquestación de tareas. Debe demostrarse que estas mejoras compensan su complejidad y costos.</li>
+  <li><strong>Propuesta de valor:</strong> acceso más sencillo y reproducible a cálculos y simulaciones forestales validados, con extensibilidad para múltiples especies/modelos y asistencia inteligente opcional.</li>
+  <li><strong>Objetivo general:</strong> evolucionar calcuLEMUs hacia una plataforma web abierta y modular, recuperando sus funcionalidades existentes y evaluando rigurosamente la utilidad de integrar capacidades de IA.</li>
+  <li><strong>Objetivos específicos:</strong> (1) inventariar y migrar funciones de los tres módulos; (2) validar resultados respecto de MATLAB; (3) desarrollar una interfaz web utilizable sin instalación; (4) documentar modelos, unidades, supuestos y dominios de aplicación; (5) evaluar un chatbot de consulta y operación; (6) analizar la conveniencia de agentes y de futuras ampliaciones funcionales.</li>
+  <li><strong>Usuarios potenciales, no validados:</strong> investigadores, técnicos, productores, administradores forestales, instituciones educativas y organismos públicos.</li>
+</ul>
+
+<h2>4. Aplicaciones Potenciales de la Asistencia Conversacional y Agéntica</h2>
+<p>
+La IA podría facilitar una interacción en lenguaje natural con la documentación, los datos y las herramientas de la PFI. Conviene diferenciar las <strong>capacidades ya disponibles</strong> (acceso externo a NotebookLM desde WEB) de las <strong>funcionalidades propuestas</strong>, que todavía requieren diseño, implementación y validación. La incorporación de IA no reemplaza los formularios ni los algoritmos científicos existentes: constituye una vía opcional de interacción y coordinación.
+</p>
+
+<h3>4.1. Tres Niveles de Integración de IA</h3>
+<table>
+  <thead>
+    <tr>
+      <th style="width:20%;">Nivel</th>
+      <th style="width:30%;">Alcance</th>
+      <th style="width:24%;">Ejemplo de Interacción</th>
+      <th style="width:26%;">Situación en el Proyecto</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>1. Asistencia conversacional</strong></td>
+      <td>Consultas en lenguaje natural, explicación de procedimientos y recuperación de documentación técnica o científica, sin ejecutar modelos.</td>
+      <td>«¿Qué significa densidad relativa y cómo se interpreta?»</td>
+      <td><strong>Antecedente parcial existente:</strong> WEB ofrece acceso externo a NotebookLM; no es un asistente integrado a la sesión de cálculo.</td>
+    </tr>
+    <tr>
+      <td><strong>2. Asistencia con herramientas</strong></td>
+      <td>Interpretación de instrucciones e invocación controlada de funciones de inventario, cálculo y simulación; resultados producidos por algoritmos validados.</td>
+      <td>«Calculá el área basal por clase diamétrica de este inventario».</td>
+      <td><strong>Propuesto; prioridad de experimentación.</strong></td>
+    </tr>
+    <tr>
+      <td><strong>3. Coordinación agéntica de procesos</strong></td>
+      <td>Planificación de tareas, encadenamiento de herramientas, ejecución y comparación de escenarios, y síntesis de resultados bajo supervisión.</td>
+      <td>«Compará tres intensidades de raleo durante 20 años y prepará un informe».</td>
+      <td><strong>Propuesto a mediano plazo</strong>, condicionado a validación técnica y utilidad demostrada.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>4.2. Consultas y Operaciones Ilustrativas</h3>
+<table>
+  <thead>
+    <tr>
+      <th style="width:22%;">Aplicación</th>
+      <th style="width:36%;">Consulta Posible</th>
+      <th style="width:42%;">Función Requerida y Condición</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Consultas de inventarios</td>
+      <td>«¿Cuál es el área basal total y su distribución por clases diamétricas?»</td>
+      <td>Leer el inventario autorizado, invocar cálculos dasométricos y presentar resultados verificables.</td>
+    </tr>
+    <tr>
+      <td>Control de calidad</td>
+      <td>«Revisá unidades, datos faltantes y valores atípicos de este archivo».</td>
+      <td>Validación estructurada; toda corrección de datos originales requiere confirmación.</td>
+    </tr>
+    <tr>
+      <td>Selección de modelos</td>
+      <td>«¿Qué modelo es aplicable a esta especie y región?»</td>
+      <td>Catálogo de modelos con referencias, variables, parámetros y dominios de validez.</td>
+    </tr>
+    <tr>
+      <td>Simulaciones silvícolas</td>
+      <td>«Compará la producción de tres alternativas de raleo».</td>
+      <td>Ejecutar modelos deterministas y registrar supuestos y escenarios.</td>
+    </tr>
+    <tr>
+      <td>Apoyo a decisiones</td>
+      <td>«¿Qué escenario maximiza volumen comercial con densidad relativa &le; 0,6?»</td>
+      <td>Comparación explícita de criterios y restricciones; no sustituye el juicio profesional.</td>
+    </tr>
+    <tr>
+      <td>Informes</td>
+      <td>«Generá un informe técnico de este inventario y las simulaciones».</td>
+      <td>Reunir tablas, gráficos, parámetros y procedencia de los resultados.</td>
+    </tr>
+    <tr>
+      <td>Documentación científica</td>
+      <td>«¿Qué supuestos utiliza Piltriquitrón?»</td>
+      <td>Recuperación de fuentes verificables; el acceso a NotebookLM es un antecedente limitado.</td>
+    </tr>
+    <tr>
+      <td>Integraciones futuras</td>
+      <td>«Contrastá la simulación con información climática disponible».</td>
+      <td>Requiere fuentes externas, interoperabilidad y controles de calidad adicionales.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>4.3. Principios de Implementación y Evaluación</h3>
+<ul>
+  <li><strong>Separación entre IA y motor científico:</strong> los modelos de lenguaje interpretan solicitudes y organizan operaciones; los resultados numéricos proceden de algoritmos forestales validados.</li>
+  <li><strong>Trazabilidad y reproducibilidad:</strong> conservar datos de entrada, versión del modelo, unidades, parámetros, restricciones, ejecuciones y resultados.</li>
+  <li><strong>Supervisión humana:</strong> requerir autorización para modificar datos persistentes o ejecutar acciones con consecuencias sobre decisiones de manejo.</li>
+  <li><strong>Uso sin IA:</strong> mantener disponibles las funciones convencionales de la plataforma, incluso cuando el asistente no esté disponible.</li>
+  <li><strong>Evaluación incremental:</strong> comparar exactitud, tiempo de operación, errores, usabilidad y costos de cada nivel respecto de la alternativa inmediatamente anterior.</li>
+</ul>
+
+<h2>5. Análisis PESTEL Preliminar</h2>
+<table>
+  <thead>
+    <tr>
+      <th style="width:14%;">Dimensión</th>
+      <th style="width:32%;">Factores y Mecanismos</th>
+      <th style="width:28%;">Oportunidad / Riesgo</th>
+      <th style="width:26%;">Evidencia Pendiente</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Política</strong></td>
+      <td>Políticas de innovación, extensión, gestión forestal y cooperación institucional</td>
+      <td>Apoyo y adopción / discontinuidad de prioridades</td>
+      <td>Programas vigentes, convenios y elegibilidad</td>
+    </tr>
+    <tr>
+      <td><strong>Económica</strong></td>
+      <td>Costos de licencias, migración, hosting, mantenimiento y uso de IA</td>
+      <td>Menor barrera de acceso / costos recurrentes</td>
+      <td>Presupuesto, horas y costos reales</td>
+    </tr>
+    <tr>
+      <td><strong>Social</strong></td>
+      <td>Capacitación digital, heterogeneidad de usuarios y confianza en modelos</td>
+      <td>Ampliación de acceso / baja adopción</td>
+      <td>Entrevistas y pruebas de usabilidad</td>
+    </tr>
+    <tr>
+      <td><strong>Tecnológica</strong></td>
+      <td>Ecosistema Python/web, programación asistida, APIs de modelos de lenguaje</td>
+      <td>Modularidad / dependencia de proveedores y deuda técnica</td>
+      <td>Auditoría, prototipo, pruebas</td>
+    </tr>
+    <tr>
+      <td><strong>Ecológica</strong></td>
+      <td>Necesidad de evaluar crecimiento, manejo, productividad y sostenibilidad</td>
+      <td>Aplicaciones de interés / interpretaciones inadecuadas</td>
+      <td>Casos de uso y métricas ambientales</td>
+    </tr>
+    <tr>
+      <td><strong>Legal</strong></td>
+      <td>Licencias, titularidad de código/modelos/datos, privacidad y responsabilidad profesional</td>
+      <td>Reutilización abierta / restricciones de distribución</td>
+      <td>Revisión de licencias, políticas de datos y derechos</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>6. Matriz FODA y Estrategias Cruzadas</h2>
+<table>
+  <thead>
+    <tr>
+      <th style="width:50%;">Fortalezas (Internas)</th>
+      <th style="width:50%;">Debilidades (Internas)</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>
+        &bull; <strong>F1.</strong> Tres módulos MATLAB funcionales.<br>
+        &bull; <strong>F2.</strong> Experiencia científica y modelos existentes.<br>
+        &bull; <strong>F3.</strong> Versión web publicada con cálculos y simulación de raleos.<br>
+        &bull; <strong>F4.</strong> Documentación técnica y referencia pública del software.
+      </td>
+      <td>
+        &bull; <strong>D1.</strong> Migración web funcionalmente incompleta.<br>
+        &bull; <strong>D2.</strong> Arquitectura multiusuario y agéntica aún no validada.<br>
+        &bull; <strong>D3.</strong> Recursos de desarrollo y mantenimiento por cuantificar.<br>
+        &bull; <strong>D4.</strong> Falta de mediciones de demanda, tiempos y costos.
+      </td>
+    </tr>
+    <tr>
+      <th>Oportunidades (Externas)</th>
+      <th>Amenazas (Externas)</th>
+    </tr>
+    <tr>
+      <td>
+        &bull; <strong>O1.</strong> Herramientas abiertas para desarrollo y despliegue.<br>
+        &bull; <strong>O2.</strong> Posibilidad de alianzas científicas e institucionales.<br>
+        &bull; <strong>O3.</strong> Integración futura de información espacial, climática y económica.<br>
+        &bull; <strong>O4.</strong> Potencial de extender acceso a usuarios sin MATLAB.
+      </td>
+      <td>
+        &bull; <strong>A1.</strong> Cambios de precios o disponibilidad de proveedores de IA.<br>
+        &bull; <strong>A2.</strong> Adopción insuficiente o escasa capacidad de soporte.<br>
+        &bull; <strong>A3.</strong> Riesgos de seguridad y tratamiento de datos.<br>
+        &bull; <strong>A4.</strong> Uso de modelos fuera de su dominio de validez.
+      </td>
+    </tr>
+  </tbody>
+</table>
+<ul>
+  <li><strong>Estrategia FO:</strong> utilizar la base científica y documental existente para construir un prototipo web abierto y verificable.</li>
+  <li><strong>Estrategia DO:</strong> migrar por módulos, empleando herramientas de desarrollo asistido, revisión humana y pruebas automatizadas.</li>
+  <li><strong>Estrategia FA:</strong> mantener el motor científico independiente del LLM y exigir trazabilidad de modelos, unidades, parámetros y resultados.</li>
+  <li><strong>Estrategia DA:</strong> acotar el alcance inicial, estimar mantenimiento, validar usuarios y evitar dependencia exclusiva de servicios externos.</li>
+</ul>
+
+<h2>7. Evaluación de Alternativas</h2>
+<table>
+  <thead>
+    <tr>
+      <th style="width:22%;">Alternativa</th>
+      <th style="width:30%;">Descripción</th>
+      <th style="width:24%;">Ventaja</th>
+      <th style="width:24%;">Límite Principal</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>A. Continuidad</strong></td>
+      <td>Mantener MATLAB y la web parcial</td>
+      <td>Menor inversión inmediata; referencia funcional</td>
+      <td>Instalación y dependencia tecnológica; web incompleta</td>
+    </tr>
+    <tr>
+      <td><strong>B. Migración web</strong></td>
+      <td>Completar los tres módulos en arquitectura web sin IA operativa</td>
+      <td>Accesibilidad y unificación funcional</td>
+      <td>Esfuerzo de migración y validación</td>
+    </tr>
+    <tr>
+      <td><strong>C. Web + asistencia integrada (niveles 1–2)</strong></td>
+      <td>Evolucionar del enlace externo a NotebookLM hacia consultas integradas y ejecución controlada de herramientas</td>
+      <td>Posible mejora de experiencia y productividad</td>
+      <td>Costos, errores y necesidad de evaluación</td>
+    </tr>
+    <tr>
+      <td><strong>D. Web con coordinación agéntica (nivel 3)</strong></td>
+      <td>Agentes capaces de planificar y coordinar herramientas y simulaciones con controles</td>
+      <td>Posible automatización de procesos complejos</td>
+      <td>Mayor complejidad, seguridad y gobernanza</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>8. Evaluación Económica y ROI: Marco sin Cifras Inventadas</h2>
+<p>
+Se proponen tres comparaciones incrementales: <strong>B–A</strong> (valor de migración), <strong>C–B</strong> (valor del asistente) y <strong>D–C</strong> (valor adicional de agentes). Para cada una se definirán un horizonte temporal común, tasa de descuento, costos de desarrollo, mantenimiento, infraestructura, APIs, formación y soporte.
+</p>
+<div class="equation-box">
+  <strong>ROI simple:</strong> &nbsp; ROI = [(Beneficios monetarios acumulados &minus; Costos acumulados) / Costos acumulados] &times; 100
+  &nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;
+  <strong>VAN:</strong> &nbsp; VAN = &Sigma;<sub>t</sub> (Beneficios<sub>t</sub> &minus; Costos<sub>t</sub>) / (1 + r)<sup>t</sup>
+</div>
+
+<h2>9. Riesgos y Mitigaciones</h2>
+<table>
+  <thead>
+    <tr>
+      <th style="width:32%;">Riesgo</th>
+      <th style="width:28%;">Consecuencia</th>
+      <th style="width:40%;">Mitigación Propuesta</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Diferencias numéricas entre MATLAB y nueva implementación</td>
+      <td>Resultados científicos inconsistentes</td>
+      <td>Casos de referencia, tolerancias, pruebas de regresión</td>
+    </tr>
+    <tr>
+      <td>Alcance excesivo</td>
+      <td>Retrasos y mantenimiento inviable</td>
+      <td>Etapas y criterios de aceptación</td>
+    </tr>
+    <tr>
+      <td>Uso de modelos fuera de su dominio</td>
+      <td>Recomendaciones inválidas</td>
+      <td>Metadatos, restricciones, advertencias y revisión humana</td>
+    </tr>
+    <tr>
+      <td>Errores o alucinaciones del asistente</td>
+      <td>Interpretaciones incorrectas</td>
+      <td>Herramientas deterministas, citas, auditoría de acciones</td>
+    </tr>
+    <tr>
+      <td>Dependencia de proveedor</td>
+      <td>Costos y discontinuidad</td>
+      <td>Abstracción de APIs, opción sin IA</td>
+    </tr>
+    <tr>
+      <td>Falta de adopción</td>
+      <td>Beneficios inferiores a lo esperado</td>
+      <td>Pruebas con usuarios y pilotos controlados</td>
+    </tr>
+    <tr>
+      <td>Exposición de datos</td>
+      <td>Riesgos legales y reputacionales</td>
+      <td>Autenticación, permisos, minimización y política de datos</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>10. Hoja de Ruta Propuesta (Fases 0 a 4)</h2>
+<ul>
+  <li><strong>Fase 0 — Inventario y línea base:</strong> documentar los tres módulos, versiones, dependencias, modelos, datos de ejemplo y resultados MATLAB; definir pruebas patrón.</li>
+  <li><strong>Fase 1 — Consolidación web:</strong> definir arquitectura, formatos y contratos de datos; recuperar funcionalidades faltantes por módulos, con validación de equivalencia.</li>
+  <li><strong>Fase 2 — Piloto de usuarios:</strong> probar carga de inventarios, simulaciones, exportación, usabilidad y mantenimiento con perfiles de usuarios definidos.</li>
+  <li><strong>Fase 3 — Integración conversacional y asistencia con herramientas (niveles 1–2):</strong> aprovechar la experiencia de NotebookLM como antecedente de consulta documental; desarrollar un asistente integrado con acceso controlado a funciones del motor científico y medir tiempos, errores y utilidad frente a la interfaz convencional.</li>
+  <li><strong>Fase 4 — Coordinación agéntica (nivel 3) y expansión:</strong> incorporar planificación de procesos, comparación de escenarios y nuevas áreas solo tras cumplir criterios de seguridad, calidad y beneficio incremental.</li>
+</ul>
+
+<h2>11. Vacíos de Información y Agenda de Validación</h2>
+<ol>
+  <li>Descripción funcional exhaustiva de los tres módulos y sus subfunciones, incluidas las limitaciones internas documentadas.</li>
+  <li>Acceso al código fuente y casos de prueba de MATLAB y web para verificar correspondencia de algoritmos.</li>
+  <li>Estado de licencias y titularidad de cada componente; confirmar alcance de Apache 2.0 y dependencias.</li>
+  <li>Tiempo y costos de instalación, ejecución, actualización y soporte de la versión actual.</li>
+  <li>Perfiles de usuarios, frecuencia de uso, tareas críticas y demanda potencial.</li>
+  <li>Recursos disponibles para programación, validación, hosting y mantenimiento.</li>
+  <li>Diseño de ensayos comparativos entre interfaz convencional, nivel 1 integrado, nivel 2 con herramientas y nivel 3 agéntico; distinguir el acceso externo existente a NotebookLM.</li>
+  <li>Identificación documentada de soluciones comparables, si se considera necesaria para decisiones comerciales o institucionales.</li>
+  <li>Definición de gobernanza y responsabilidad por recomendaciones de manejo.</li>
+</ol>
+
+<h2>12. Conclusiones Provisionales y Fuentes</h2>
+<p>
+La PFI presenta <strong>factibilidad conceptual favorable para una etapa de desarrollo incremental</strong>, dado que parte de un sistema MATLAB funcional y de una migración web parcial. La prioridad es preservar y validar el núcleo científico, completar la migración por etapas y evaluar separadamente el aporte de IA. El acceso actual a NotebookLM constituye un antecedente de consulta conversacional externa (nivel 1), mientras que la integración con herramientas de cálculo (nivel 2) y la coordinación agéntica (nivel 3) permanecen como desarrollos propuestos.
+</p>
+<ul>
+  <li><strong>Sitio general calcuLEMUs:</strong> <a href="https://intacalculemus.github.io/web/index.html" target="_blank">https://intacalculemus.github.io/web/index.html</a></li>
+  <li><strong>Procesamiento de inventarios de plantaciones:</strong> <a href="https://intacalculemus.github.io/web/Page3.html" target="_blank">https://intacalculemus.github.io/web/Page3.html</a></li>
+  <li><strong>Procesamiento de inventarios de bosque nativo:</strong> <a href="https://intacalculemus.github.io/web/Page11.html" target="_blank">https://intacalculemus.github.io/web/Page11.html</a></li>
+  <li><strong>Simulador Piltriquitrón:</strong> <a href="https://intacalculemus.github.io/web/Page17.html" target="_blank">https://intacalculemus.github.io/web/Page17.html</a></li>
+  <li><strong>Calculadora web y manual técnico:</strong> <a href="https://intacalculemus.github.io/web/calculadora.html" target="_blank">https://intacalculemus.github.io/web/calculadora.html</a></li>
+  <li><strong>Referencia Zenodo DOI:</strong> Letourneau, F. J. (2026), <em>calcuLEMUs</em>, versión 1.0.0, Zenodo, <a href="https://doi.org/10.5281/zenodo.22661942" target="_blank">https://doi.org/10.5281/zenodo.22661942</a></li>
+</ul>
+
+    </section>
+
+  </main>
+
+  <footer>
+    <strong>Diplomatura Universitaria en Ingeniería de Soluciones Basadas en Inteligencia Artificial (ISBIA — Cohorte 2026)</strong><br>
+    LIDESIA · Facultad de Ciencias Exactas, Físicas y Naturales (FCEFyN) — Universidad Nacional de Córdoba (UNC) · Instituto Nacional de Tecnología Agropecuaria (INTA)<br>
+    Autor: Dr. / Ing. Federico Jorge Letourneau (EEA Bariloche / El Bolsón)
+  </footer>
+
+  <script>
+    function showTab(tabId, btnEl) {
+      document.querySelectorAll('.view-panel').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById('view-' + tabId).classList.add('active');
+      if (btnEl) btnEl.classList.add('active');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function triggerTab(tabId) {
+      const buttons = document.querySelectorAll('.tab-btn');
+      const map = { 'sintesis': 0, 'sec1': 1, 'sec2': 2, 'sec3': 3 };
+      showTab(tabId, buttons[map[tabId]]);
+    }
+
+    function setN8nGallery(src, captionText) {
+      const img = document.getElementById('n8n-preview-img');
+      const link = document.getElementById('n8n-gallery-link');
+      const cap = document.getElementById('n8n-gallery-caption');
+      img.src = src;
+      link.href = src;
+      cap.textContent = captionText + ' — Haz clic en la imagen para ampliar.';
+    }
+  </script>
+</body>
+</html>

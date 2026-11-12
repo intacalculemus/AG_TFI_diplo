@@ -15,6 +15,7 @@ Esta aplicación es una plataforma interactiva de teledetección asistida por In
 3. **Visor Cartográfico Multicapa con Georreferenciación Estable:** Selector de capas base (Google Híbrido, Google Maps Calles, Google Terreno, Google Satélite Puro, OpenStreetMap, Esri World Imagery), herramientas de dibujo vectorial (Draw) y persistencia de encuadre territorial.
 4. **Geocodificación Administrativa Oficial en Argentina:** Detección automática de Provincia, Departamento/Partido y Municipio (API Georef IGN Argentina con fallback a OSM).
 5. **Asistente (Consultas y RAG):** Diálogo interactivo para interpretar diagnósticos cuantitativos de cobertura (hectáreas y porcentajes exactos) y consultar la documentación del stack tecnológico y guías de intervención.
+6. **Capas de Ingeniería de IA (Agent Harness, Ciberseguridad OWASP, Sandbox y Contenedores):** Orquestación con telemetría y banco de evaluación automatizado (*Golden Dataset*), Guardrails de entrada/salida, aislamiento de recursos satelitales y contenerización con Docker.
 
 ---
 
@@ -23,10 +24,15 @@ Esta aplicación es una plataforma interactiva de teledetección asistida por In
 ```text
 AG_TFI_diplo/
 │
-├── app.py                      # Frontend Web interactivo (Streamlit + Folium)
+├── app.py                      # Frontend Web interactivo (Streamlit + Folium + Auditoría Harness)
 ├── main.py                     # Demostración en consola / CLI
+├── eval_harness.py             # Ejecutor CLI del Agent Evaluation Harness y Seguridad
 ├── config.py                   # Configuración central, rutas y parámetros
 ├── requirements.txt            # Dependencias completas del proyecto
+├── Dockerfile                  # Contenedor endurecido (non-root appuser + GDAL)
+├── docker-compose.yml          # Orquestación con límites de RAM/CPU y Sandbox de volúmenes
+├── INFORME_ARQUITECTONICO_TFI.md   # Informe Arquitectónico de Ingeniería de IA (Markdown)
+├── INFORME_ARQUITECTONICO_TFI.docx # Informe Arquitectónico listo para entrega (Word)
 ├── ejecutar_app.bat            # Iniciador automático en 1 clic (Windows)
 ├── ejecutar_app.sh             # Iniciador automático para Mac / Linux
 ├── INSTRUCCIONES_COMPARTIR.md  # Guía para compartir vía Google Drive
@@ -35,16 +41,20 @@ AG_TFI_diplo/
 ├── services/                   # Motores de IA y Conexión Satelital
 │   ├── __init__.py
 │   ├── real_satellite_service.py # Inferencia ESA WorldCover 10m y streaming Sentinel-2 COG
+│   ├── drainage_service.py     # Modelado hidrológico y pendientes (Copernicus DEM 30m)
 │   └── geo_admin_service.py    # Geocodificación inversa (IGN Georef Argentina)
 │
-├── agent/                      # Núcleo del Asistente ReAct
-│   ├── core.py                 # GeoReActAgent (bucle Thought-Action-Observation)
+├── agent/                      # Núcleo del Asistente ReAct, Harness y Ciberseguridad
+│   ├── core.py                 # GeoReActAgent + Runtime Harness con telemetría
+│   ├── security.py             # Guardrails OWASP LLM (Prompt Injection, Secretos y Sandbox)
+│   ├── harness.py              # Evaluation Harness automatizado (Golden Dataset)
 │   ├── prompts.py              # System Prompt especializado para Grupo_6_2026
-│   └── parser.py               # Extracción de herramientas y respuestas
+│   └── parser.py               # Extracción determinista de herramientas y respuestas
 │
-├── tools/                      # Herramientas modulares del Asistente
-│   ├── base.py                 # Dataclass Tool y ToolRegistry
+├── tools/                      # Herramientas modulares con Sandbox de Ejecución
+│   ├── base.py                 # Dataclass Tool (con Timeout y validación Sandbox) y ToolRegistry
 │   ├── land_cover.py           # Invocación de modelo IA ESA WorldCover
+│   ├── drainage.py             # Herramienta de red de drenaje y erosión hídrica
 │   ├── geo_catalog.py          # Consulta al catálogo satelital STAC
 │   ├── single_date_classifier.py # Procesamiento de bandas B04/B08 Sentinel-2
 │   ├── timeseries.py           # Series temporales de NDVI y detección de tendencias
@@ -54,9 +64,9 @@ AG_TFI_diplo/
 ├── rag/                        # Base de Conocimiento Documental (RAG)
 │   ├── vector_store.py         # Motor de recuperación documental local
 │   └── data/
-│       └── corpus_ejemplo.txt  # Documentación del stack, guía de intervención y métodos
+│       └── corpus_ejemplo.txt  # Documentación del stack, seguridad, harness y métodos
 │
-└── outputs/                    # Rásters clasificados y mapas generados
+└── outputs/                    # Rásters clasificados y mapas generados (Filesystem Jail)
 ```
 
 ---

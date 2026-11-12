@@ -1,49 +1,28 @@
 @echo off
-chcp 65001 > nul
-title TFI_Grupo_6_2026: Clasificación de Coberturas del suelo con Agentes IA
-
+title TFI_Grupo_6_2026 - Clasificacion de Coberturas con IA
+cd /d "%~dp0"
 echo ======================================================================
-echo   🛰️ Iniciando Aplicación de Clasificación Satelital con IA
+echo   Iniciando Aplicacion de Clasificacion Satelital con IA
 echo   Diplomatura ISBIA - Lidesia - UNC / Grupo_6_2026
+echo   Directorio: %CD%
 echo ======================================================================
 echo.
-
-:: Verificar si Python está instalado
 python --version >nul 2>&1
 if %errorlevel% neq 0 (
-    echo [ERROR] No se encontró Python instalado en tu sistema.
-    echo Por favor descargá e instalá Python 3.10 o superior desde https://www.python.org/
-    echo Asegurate de marcar la casilla "Add Python to PATH" durante la instalación.
+    echo [ERROR] No se encontro Python instalado en tu sistema.
     pause
     exit /b 1
 )
-
-:: Crear entorno virtual si no existe
-if not exist "venv" (
-    echo [1/3] Creando entorno virtual aislado 'venv'...
-    python -m venv venv
-    if %errorlevel% neq 0 (
-        echo [ERROR] No se pudo crear el entorno virtual.
-        pause
-        exit /b 1
-    )
+:: Liberar puerto 8501 si quedo una instancia vieja abierta de otra carpeta
+for /f "tokens=5" %%a in ('netstat -aon ^| findstr ":8501" ^| findstr "LISTENING"') do (
+    echo Cerrando instancia previa en puerto 8501 (PID %%a)...
+    taskkill /F /PID %%a >nul 2>&1
 )
-
-:: Activar entorno virtual
-echo [2/3] Verificando dependencias necesarias...
-call venv\Scripts\activate.bat
-
-:: Instalar o actualizar dependencias
-pip install -r requirements.txt --quiet --disable-pip-version-check
-
-echo [3/3] Lanzando la aplicación web en tu navegador...
+if exist "venv\Scripts\activate.bat" (
+    echo Activando entorno virtual venv...
+    call venv\Scripts\activate.bat
+)
+echo Lanzando la aplicacion web en tu navegador (http://localhost:8501)...
 echo.
-echo ======================================================================
-echo   La app se abrirá automáticamente en: http://localhost:8501
-echo   (Para cerrar la aplicación, cerrá esta ventana de consola)
-echo ======================================================================
-echo.
-
-streamlit run app.py
-
+python -m streamlit run app.py --server.port 8501
 pause

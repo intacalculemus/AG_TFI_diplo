@@ -6,7 +6,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 # Cargar variables de entorno desde .env si existe
-load_dotenv()
+load_dotenv(override=True)
 
 # Rutas del Proyecto
 BASE_DIR = Path(__file__).resolve().parent
@@ -20,13 +20,18 @@ RAG_DATA_DIR.mkdir(parents=True, exist_ok=True)
 OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
 
 # Configuración del Proveedor LLM
-# Soporta tanto HuggingFace Router como OpenAI directo
+# Soporta Groq, HuggingFace Router y OpenAI directo
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 HF_TOKEN = os.getenv("HF_TOKEN", "")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 MODEL_ID_ENV = os.getenv("MODEL_ID", "")
 
-# Prioridad de endpoints: HuggingFace Router si hay HF_TOKEN, sino OpenAI
-if HF_TOKEN:
+# Prioridad de endpoints: Groq -> HuggingFace Router -> OpenAI
+if GROQ_API_KEY:
+    LLM_BASE_URL = "https://api.groq.com/openai/v1"
+    LLM_API_KEY = GROQ_API_KEY
+    DEFAULT_MODEL = MODEL_ID_ENV or "openai/gpt-oss-120b"
+elif HF_TOKEN:
     LLM_BASE_URL = "https://router.huggingface.co/v1"
     LLM_API_KEY = HF_TOKEN
     DEFAULT_MODEL = MODEL_ID_ENV or "Qwen/Qwen2.5-72B-Instruct"

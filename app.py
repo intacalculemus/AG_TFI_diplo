@@ -11,7 +11,8 @@ import streamlit as st
 st.set_page_config(
     layout="wide",
     page_title="TFI_Grupo_6_2026: Clasificación de Coberturas del suelo con Agentes IA",
-    page_icon="🛰️"
+    page_icon="🛰️",
+    initial_sidebar_state="expanded"
 )
 
 import folium
@@ -25,14 +26,28 @@ from pathlib import Path
 from shapely.geometry import shape
 
 from agent.core import GeoReActAgent
+from agent.harness import run_evaluation_harness
+from agent.security import get_security_and_sandbox_status
+from agent.auth import (
+    verify_access_key,
+    list_access_keys,
+    create_access_key,
+    toggle_access_key,
+    delete_access_key,
+    update_master_or_key_password,
+    get_audit_log,
+    MAX_FAILED_ATTEMPTS,
+)
 from tools.base import default_registry
 from services.real_satellite_service import (
     search_real_scenes,
     fetch_and_classify_real_scene,
     classify_with_esa_worldcover,
+    discover_available_sources,
     estimate_bbox_dimensions,
     DEFAULT_BBOX,
-    ESA_WORLDCOVER_CLASSES
+    ESA_WORLDCOVER_CLASSES,
+    IO_LULC_CLASSES
 )
 from services.drainage_service import analyze_drainage_and_slope
 from services.geo_admin_service import (
@@ -47,6 +62,11 @@ import datetime
 def cached_admin_location(bbox_tuple: tuple):
     return get_location_for_bbox(list(bbox_tuple))
 
+@st.cache_data(show_spinner=False, ttl=3600)
+def cached_sources_catalog(bbox_tuple: tuple, sync_version: int = 0):
+    """Descubre y cachea (TTL 1h) las colecciones, años y fechas disponibles en STAC para el BBox."""
+    return discover_available_sources(list(bbox_tuple))
+
 @st.dialog("🔬 Configurar y Ejecutar Clasificación", width="large")
 def dialog_clasificacion():
     """Cuadro de diálogo modal para configurar y lanzar la clasificación del área seleccionada."""
@@ -54,41 +74,84 @@ def dialog_clasificacion():
     loc_text = admin_info.get("texto_formateado", "Argentina")
     fuente_text = admin_info.get("fuente", "IGN Georef")
     dim_info = estimate_bbox_dimensions(st.session_state.current_bbox)
-    
+    sync_ver = st.session_state.get("stac_sync_version", 0)
+
+    with st.spinner("Sincronizando catálogo STAC (años y fechas disponibles)..."):
+        sources_info = cached_sources_catalog(tuple(st.session_state.current_bbox), sync_ver)
+
     st.markdown(
         f"""
-        <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-left: 4px solid #16a34a; padding: 6px 12px; border-radius: 6px; margin-bottom: 12px; font-size: 0.88rem; color: #1e293b;">
+        <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-left: 4px solid #16a34a; padding: 6px 12px; border-radius: 6px; margin-bottom: 8px; font-size: 0.88rem; color: #1e293b;">
             📍 <b>Área a Clasificar:</b> <b>{dim_info['superficie_ha']:,.1f} ha</b> ({dim_info['total_pixeles']:,} px a 10m) &nbsp;|&nbsp; 🏛️ <b>Ubicación:</b> <span style="font-weight: 600; color: #15803d;">{loc_text}</span> <span style="color: #64748b; font-size: 0.78rem;">({fuente_text})</span>
         </div>
         """,
         unsafe_allow_html=True
     )
-    
+
+    # Barra de estado de sincronización STAC + botón manual de refresco
+    col_sync_info, col_sync_btn = st.columns([2.7, 1.1])
+    stac_badge = "🟢 STAC Online" if sources_info.get("stac_online") else "🟡 Modo Caché Local"
+    s2_last = sources_info.get("sentinel2", {}).get("latest_scene_date", "N/A")
+    col_sync_info.caption(
+        f"📡 **{stac_badge}** | Sincronizado: `{sources_info.get('synced_at')}` | "
+        f"Última escena S2 en zona: `{s2_last}`"
+    )
+    if col_sync_btn.button("🔄 Sincronizar fuentes STAC", use_container_width=True, help="Consulta en vivo Microsoft Planetary Computer STAC para actualizar años y fechas disponibles"):
+        st.session_state.stac_sync_version = sync_ver + 1
+        cached_sources_catalog.clear()
+        st.rerun()
+
     engine_choice = st.radio(
         "Seleccioná el método de clasificación:",
         options=[
-            "🧠 Modelo IA Deep Learning: ESA WorldCover (10m - 8+ Clases: Bosque, Cultivo, Matorral, Pastizal, Agua, etc.)",
+            "🧠 Modelo IA Deep Learning 10m (ESA WorldCover / Esri Annual LULC - Multiclase)",
             "⚡ Umbralización Radiométrica: NDVI Sentinel-2 L2A (10m - Vegetación / Suelo / Agua)"
         ],
         index=0
     )
-    
+
     # ---------------------------------------------------------
-    # RAMA A: MODELO IA DEEP LEARNING
+    # RAMA A: MODELO IA DEEP LEARNING (ESA WORLDCOVER + ESRI 10M LULC)
     # ---------------------------------------------------------
-    if "WorldCover" in engine_choice:
+    if "Modelo IA" in engine_choice or "WorldCover" in engine_choice:
         st.markdown("---")
-        col_wc1, col_wc2 = st.columns([1, 1.3])
-        wc_year = col_wc1.selectbox("📅 Año del Modelo / Imagen:", ["2021", "2020"], index=0)
-        col_wc2.info("💡 Clasificación automática en 8+ clases taxonómicas mediante redes convolucionales globales (ESA/VITO).")
-        
+        col_src, col_yr = st.columns([1.6, 1.0])
+        ai_collection_map = {
+            "🌎 Esri / Impact Observatory 10m Annual LULC (Serie Anual Multitemporal)": "io-lulc-annual-v02",
+            "🌍 ESA WorldCover 10m (ESA/VITO - Alta Precisión Taxonómica)": "esa-worldcover",
+        }
+        selected_ai_label = col_src.selectbox(
+            "🛰️ Fuente / Colección de IA en STAC:",
+            options=list(ai_collection_map.keys()),
+            index=0
+        )
+        chosen_coll_id = ai_collection_map[selected_ai_label]
+
+        if chosen_coll_id == "esa-worldcover":
+            available_ai_years = sources_info.get("esa_worldcover", {}).get("years", ["2021", "2020"])
+            info_msg = (
+                f"💡 **ESA WorldCover 10m (`esa-worldcover`):** Clasificación en 11 clases taxonómicas (ESA/VITO). "
+                f"Años detectados en STAC para esta zona: `{', '.join(available_ai_years)}`."
+            )
+        else:
+            available_ai_years = sources_info.get("io_lulc", {}).get("years", ["2023", "2022", "2021", "2020", "2019", "2018", "2017"])
+            info_msg = (
+                f"💡 **Esri / Impact Observatory 10m LULC (`io-lulc-annual-v02`):** Serie anual continua entrenada sobre Sentinel-2 en 9 clases. "
+                f"Años detectados en STAC para esta zona: `{', '.join(available_ai_years)}`."
+            )
+
+        wc_year = col_yr.selectbox("📅 Año disponible en STAC:", available_ai_years, index=0)
+        st.info(info_msg)
+
         st.markdown("<br>", unsafe_allow_html=True)
-        if st.button(f"🚀 Ejecutar Modelo de IA: ESA WorldCover ({wc_year})", type="primary", use_container_width=True):
-            with st.spinner(f"Ejecutando inferencia del modelo ESA WorldCover 10m para el año {wc_year}..."):
+        short_model_btn = "ESA WorldCover" if chosen_coll_id == "esa-worldcover" else "Esri 10m Annual LULC"
+        if st.button(f"🚀 Ejecutar Modelo de IA: {short_model_btn} ({wc_year})", type="primary", use_container_width=True):
+            with st.spinner(f"Ejecutando inferencia de {short_model_btn} (10m) para el año {wc_year}..."):
                 try:
                     res = classify_with_esa_worldcover(
                         bbox=st.session_state.current_bbox,
-                        year=wc_year
+                        year=wc_year,
+                        collection_id=chosen_coll_id
                     )
                     st.session_state.classification_result = res
                     st.session_state.map_version += 1
@@ -96,22 +159,63 @@ def dialog_clasificacion():
                         st.session_state.fit_bounds_target = res["folium_bounds"]
                     st.rerun()
                 except Exception as e:
-                    st.error(f"Error al ejecutar modelo ESA WorldCover: {e}")
+                    st.error(f"Error al ejecutar modelo de IA ({short_model_btn}): {e}")
 
     # ---------------------------------------------------------
-    # RAMA B: RADIOMETRÍA SENTINEL-2 L2A
+    # RAMA B: RADIOMETRÍA SENTINEL-2 L2A (AÑO DINÁMICO + RANGO PERSONALIZADO)
     # ---------------------------------------------------------
     else:
         st.markdown("---")
-        st.markdown("##### 🕒 Selector de Escenas Históricas y Parámetros Espectrales")
-        col_hist1, col_hist2, col_hist3 = st.columns([1, 1, 1])
-        hist_year = col_hist1.selectbox("Año Histórico:", ["2024", "2023", "2022", "2021", "2020"], index=0)
-        max_clouds = col_hist2.slider("Nubosidad Máx. (%):", 0.0, 30.0, 15.0, 5.0)
-        limite_escenas = col_hist3.selectbox("Cant. Escenas:", [5, 10, 15], index=1)
+        st.markdown("##### 🕒 Selector Dinámico de Fechas y Parámetros Espectrales (Sentinel-2 L2A)")
 
-        date_range_query = f"{hist_year}-01-01/{hist_year}-12-31"
+        s2_meta = sources_info.get("sentinel2", {})
+        dynamic_s2_years = s2_meta.get("years", [str(y) for y in range(datetime.date.today().year, 2016, -1)])
+        today_dt = datetime.date.today()
+        min_dt_allowed = datetime.date(2017, 1, 1)
 
-        with st.spinner(f"Consultando catálogo STAC para escenas del año {hist_year}..."):
+        search_mode = st.radio(
+            "Modo de búsqueda temporal en STAC:",
+            options=[
+                "📅 Por Año (2017 – Presente, actualizado automáticamente)",
+                "📆 Rango de Fechas Personalizado (Desde / Hasta)"
+            ],
+            horizontal=True,
+            index=0
+        )
+
+        if "Por Año" in search_mode:
+            col_hist1, col_hist2, col_hist3 = st.columns([1, 1, 1])
+            hist_year = col_hist1.selectbox("Año (Dinámico):", dynamic_s2_years, index=0)
+            max_clouds = col_hist2.slider("Nubosidad Máx. (%):", 0.0, 50.0, 15.0, 5.0)
+            limite_escenas = col_hist3.selectbox("Cant. Escenas:", [5, 10, 15, 25], index=1)
+            date_range_query = f"{hist_year}-01-01/{hist_year}-12-31"
+            period_label = f"el año {hist_year}"
+        else:
+            col_d1, col_d2, col_d3, col_d4 = st.columns([1.05, 1.05, 1.0, 0.8])
+            default_start = max(min_dt_allowed, today_dt - datetime.timedelta(days=120))
+            start_date_val = col_d1.date_input(
+                "Fecha Desde:",
+                value=default_start,
+                min_value=min_dt_allowed,
+                max_value=today_dt
+            )
+            end_date_val = col_d2.date_input(
+                "Fecha Hasta:",
+                value=today_dt,
+                min_value=min_dt_allowed,
+                max_value=today_dt
+            )
+            max_clouds = col_d3.slider("Nubosidad Máx. (%):", 0.0, 50.0, 15.0, 5.0)
+            limite_escenas = col_d4.selectbox("Cant. Escenas:", [5, 10, 15, 25], index=1)
+
+            if start_date_val > end_date_val:
+                st.warning("⚠️ La 'Fecha Desde' no puede ser posterior a la 'Fecha Hasta'. Se ajustó automáticamente.")
+                start_date_val = end_date_val
+
+            date_range_query = f"{start_date_val.strftime('%Y-%m-%d')}/{end_date_val.strftime('%Y-%m-%d')}"
+            period_label = f"el período {start_date_val.strftime('%Y-%m-%d')} a {end_date_val.strftime('%Y-%m-%d')}"
+
+        with st.spinner(f"Consultando catálogo STAC para escenas en {period_label}..."):
             real_scenes = search_real_scenes(
                 bbox=st.session_state.current_bbox,
                 date_range=date_range_query,
@@ -120,7 +224,7 @@ def dialog_clasificacion():
             )
 
         if not real_scenes:
-            st.warning(f"No se encontraron escenas con menos del {max_clouds}% de nubes en {hist_year}. Probá aumentando el umbral de nubes.")
+            st.warning(f"No se encontraron escenas con menos del {max_clouds}% de nubes en {period_label}. Probá ampliando el rango de fechas o aumentando el umbral de nubes.")
         
         options_dict = {
             f"📅 {s['fecha']} | {s['satelite']} (Nubes: {s['cobertura_nubes_pct']}%)": s
@@ -128,7 +232,7 @@ def dialog_clasificacion():
         }
 
         selected_label = st.selectbox(
-            "Seleccioná la escena Sentinel-2 histórica a procesar:",
+            "Seleccioná la escena Sentinel-2 a procesar:",
             options=list(options_dict.keys()),
             index=0 if options_dict else None
         )
@@ -157,6 +261,188 @@ def dialog_clasificacion():
                     except Exception as e:
                         st.error(f"Error al procesar la imagen satelital: {e}")
 
+
+@st.dialog("🛡️ Auditoría: Agent Harness, Ciberseguridad, Sandbox y Contenedores", width="large")
+def dialog_harness_seguridad():
+    """Panel interactivo de auditoría de Ingeniería de IA para la Diplomatura ISBIA."""
+    sec_info = get_security_and_sandbox_status()
+    st.markdown(
+        """
+        <div style="background-color: #f8fafc; border: 1px solid #cbd5e1; border-left: 4px solid #0284c7; padding: 10px 14px; border-radius: 6px; margin-bottom: 12px; font-size: 0.88rem; color: #1e293b;">
+            <b>Arquitectura de Capas Desacopladas (ISBIA - FCEFyN UNC):</b> El núcleo del agente <code>GeoReActAgent</code> se encuentra envuelto por cuatro capas de ingeniería que garantizan control determinístico, ciberseguridad y aislamiento en la nube.
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+    c1, c2 = st.columns(2)
+    with c1:
+        st.markdown("##### 🛡️ 1. Ciberseguridad (OWASP LLM Top 10)")
+        st.caption(f"• **Input Guardrail:** {sec_info['input_guardrail']}")
+        st.caption(f"• **Output Guardrail:** {sec_info['output_guardrail']}")
+        st.markdown("##### ⚙️ 2. Agent Harness (Orquestación & Eval)")
+        st.caption("• **Runtime Harness:** Control de bucle (`max_steps=7`), parser Regex determinista, telemetría de latencia y motor de contingencia local.")
+    with c2:
+        st.markdown("##### 🔒 3. Sandbox de Ejecución")
+        st.caption(f"• **Sandbox de Herramientas:** {sec_info['tool_sandbox']}")
+        st.caption(f"• **Cuota Máx. de Superficie RAM:** `{sec_info['sandbox_max_area_ha']:,.0f} ha` por consulta satelital COG.")
+        st.markdown("##### 📦 4. Contenedores (Cloud / Docker)")
+        st.caption("• **Despliegue Dual:** Contenedor Linux aislado en *Streamlit Cloud* + especificación `Dockerfile` (`non-root appuser`, `mem_limit: 2g`) para servidores de INTA.")
+
+    st.markdown("---")
+    st.markdown("#### 📊 Telemetría en Vivo de la Sesión Actual (Runtime Harness)")
+    sess_m = getattr(st.session_state.agent, "session_metrics", {}) or {}
+    q_cnt = sess_m.get("queries_count", 0)
+    avg_lat = round(sess_m.get("total_latency_ms", 0.0) / q_cnt, 1) if q_cnt > 0 else 0.0
+    sm1, sm2, sm3, sm4 = st.columns(4)
+    sm1.metric("💬 Consultas Sesión", f"{q_cnt}")
+    sm2.metric("🪙 Tokens Consumidos", f"{sess_m.get('total_tokens', 0):,}", f"Prompt: {sess_m.get('prompt_tokens', 0):,} | Out: {sess_m.get('completion_tokens', 0):,}")
+    sm3.metric("⏱️ Latencia Media", f"{avg_lat} ms")
+    sm4.metric("🛠️ Tools / Bloqueos", f"{sess_m.get('tools_invoked', 0)} tools", f"{sess_m.get('security_blocks', 0)} bloqueos")
+
+    st.markdown("---")
+    st.markdown("#### 🧪 Banco de Pruebas Automatizado (*Agent Evaluation Harness*)")
+    st.caption("Ejecuta en vivo el *Golden Dataset* (6 casos de prueba) para verificar selección de herramientas, cumplimiento del protocolo ReAct, bloqueo de *Prompt Injection* y frenado del *Sandbox* ante sobrecarga de memoria o *Path Traversal*.")
+
+    if st.button("▶️ Ejecutar Batería de Pruebas (Eval Harness & Seguridad)", type="primary", use_container_width=True):
+        with st.spinner("Ejecutando Golden Dataset sobre el Agente y las capas de Seguridad/Sandbox..."):
+            st.session_state.harness_report = run_evaluation_harness(use_deterministic_mode=True)
+
+    if st.session_state.get("harness_report"):
+        rep = st.session_state.harness_report
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric("✅ Casos Aprobados", f"{rep['aprobados']}/{rep['total_tests']}")
+        m2.metric("🎯 Tasa de Éxito", f"{rep['tasa_exito_pct']}%")
+        m3.metric("📐 Protocolo ReAct", f"{rep['cumplimiento_protocolo_pct']}%")
+        m4.metric("⚡ Latencia Media", f"{rep['latencia_promedio_ms']} ms")
+
+        table_rows = []
+        for item in rep["detalle_casos"]:
+            table_rows.append({
+                "ID": item["id"],
+                "Categoría Evaluada": item["categoria"],
+                "Prueba": item["nombre"],
+                "Acción / Capa": item["herramienta_invocada"],
+                "Latencia": f"{item['latencia_ms']} ms",
+                "Resultado": item["estado"]
+            })
+        st.table(table_rows)
+
+
+@st.dialog("🔑 Gestor de Claves de Acceso y Auditoría de Usuarios", width="large")
+def dialog_gestor_claves():
+    """Panel de administración (exclusivo rol Admin) para crear, revocar y auditar claves de acceso."""
+    st.markdown(
+        """
+        <div style="background-color: #f0f9ff; border: 1px solid #bae6fd; border-left: 4px solid #0284c7; padding: 8px 12px; border-radius: 6px; margin-bottom: 12px; font-size: 0.86rem; color: #0f172a;">
+            🔐 <b>Seguridad Criptográfica (SHA-256 + Salt):</b> Las claves que generes se almacenan hasheadas de forma irreversible en <code>data/access_keys_store.json</code>. Entregá la clave en texto únicamente al destinatario autorizado.
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+    tab_new, tab_list, tab_audit = st.tabs([
+        "➕ Emitir Nueva Clave",
+        "📋 Claves Emitidas (Activar / Revocar)",
+        "🕵️ Historial de Ingresos"
+    ])
+
+    with tab_new:
+        st.markdown("##### Crear nueva credencial de acceso")
+        with st.form("form_create_access_key", clear_on_submit=True):
+            c_f1, c_f2 = st.columns([1.4, 1.0])
+            new_label = c_f1.text_input(
+                "Nombre o Destinatario:",
+                placeholder="Ej: Tribunal Docente ISBIA / Compañero Grupo 6..."
+            )
+            new_role = c_f2.selectbox(
+                "Nivel de Permiso (RBAC):",
+                options=["usuario", "admin"],
+                format_func=lambda r: "👤 Usuario / Evaluador (Uso de App sin ver API Keys)" if r == "usuario" else "👑 Administrador (Acceso Total + Gestor de Claves)"
+            )
+            c_f3, c_f4 = st.columns([1.4, 1.0])
+            new_raw_key = c_f3.text_input(
+                "Clave a entregar (mín. 5 caracteres):",
+                placeholder="Ej: ISBIA-EVAL-2026"
+            )
+            new_quota = c_f4.number_input(
+                "Cuota máx. consultas LLM por sesión:",
+                min_value=5,
+                max_value=500,
+                value=30,
+                step=5
+            )
+            btn_create = st.form_submit_button("🔑 Registrar y Activar Clave", type="primary", use_container_width=True)
+
+        if btn_create:
+            ok, msg = create_access_key(
+                label=new_label,
+                raw_key=new_raw_key,
+                role=new_role,
+                max_queries_session=int(new_quota)
+            )
+            if ok:
+                st.success(f"{msg}\n\n📋 **Clave para entregar:** `{new_raw_key.strip()}`")
+            else:
+                st.error(msg)
+
+    with tab_list:
+        keys_data = list_access_keys()
+        st.markdown(f"##### Claves Registradas ({len(keys_data)})")
+        for k in keys_data:
+            k_id = k["id"]
+            is_act = k.get("active", True)
+            badge_est = "🟢 ACTIVA" if is_act else "🔴 REVOCADA"
+            role_badge = "👑 Admin" if k.get("role") == "admin" else "👤 Usuario"
+            with st.container(border=True):
+                col_k1, col_k2, col_k3 = st.columns([2.2, 1.1, 1.1])
+                with col_k1:
+                    st.markdown(f"**{k['label']}** &nbsp; (`{k_id}`)")
+                    st.caption(
+                        f"{badge_est} | Rol: **{role_badge}** | Pista: `{k.get('key_hint')}` | "
+                        f"Cuota: `{k.get('max_queries_session', 30)}` consultas | "
+                        f"Ingresos: `{k.get('login_count', 0)}` (Último: {k.get('last_login', 'Nunca')})"
+                    )
+                with col_k2:
+                    if not k.get("is_master"):
+                        btn_lbl = "⏸️ Revocar / Pausar" if is_act else "▶️ Reactivar Clave"
+                        if st.button(btn_lbl, key=f"tog_{k_id}", use_container_width=True):
+                            ok_t, msg_t = toggle_access_key(k_id)
+                            if ok_t:
+                                st.toast(msg_t)
+                                st.rerun()
+                            else:
+                                st.warning(msg_t)
+                    else:
+                        st.caption("🔒 *Clave Maestra*")
+                with col_k3:
+                    if not k.get("is_master"):
+                        if st.button("🗑️ Eliminar", key=f"del_{k_id}", use_container_width=True):
+                            ok_d, msg_d = delete_access_key(k_id)
+                            if ok_d:
+                                st.toast(msg_d)
+                                st.rerun()
+                            else:
+                                st.warning(msg_d)
+                    else:
+                        with st.popover("✏️ Cambiar Clave", use_container_width=True):
+                            new_master_pw = st.text_input("Nueva clave Admin:", type="password", key=f"pw_{k_id}")
+                            if st.button("Guardar", key=f"sav_{k_id}", type="primary", use_container_width=True):
+                                ok_u, msg_u = update_master_or_key_password(k_id, new_master_pw)
+                                if ok_u:
+                                    st.success(msg_u)
+                                else:
+                                    st.error(msg_u)
+
+    with tab_audit:
+        logs = get_audit_log()
+        st.markdown("##### Registro de Eventos de Seguridad e Ingresos")
+        if not logs:
+            st.info("Aún no se registran eventos en el historial.")
+        else:
+            st.table(logs[:20])
+
+
 # Fecha y hora de compilación / última actualización del archivo
 app_mtime = os.path.getmtime(__file__)
 last_update_str = datetime.datetime.fromtimestamp(app_mtime).strftime("%d/%m/%Y %H:%M:%S")
@@ -168,6 +454,10 @@ MAR_CHIQUITA_ZOOM = 9
 
 if "agent" not in st.session_state:
     st.session_state.agent = GeoReActAgent(registry=default_registry)
+elif getattr(st.session_state.agent, "last_error", None) or "Qwen/Qwen" in str(getattr(st.session_state.agent, "model", "")) or "llama-3.3" in str(getattr(st.session_state.agent, "model", "")):
+    # Re-inicializar si se actualizó el archivo .env a Groq
+    st.session_state.agent.last_error = None
+    st.session_state.agent.client = st.session_state.agent._init_client()
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 if "classification_result" not in st.session_state:
@@ -188,58 +478,197 @@ if "drawn_geometry" not in st.session_state:
     st.session_state.drawn_geometry = None
 if "last_searched_location" not in st.session_state:
     st.session_state.last_searched_location = None
+if "auth_user" not in st.session_state:
+    st.session_state.auth_user = None
+if "failed_login_attempts" not in st.session_state:
+    st.session_state.failed_login_attempts = 0
+if "user_queries_used" not in st.session_state:
+    st.session_state.user_queries_used = 0
 
 # -------------------------------------------------------------
-# SIDEBAR: CONFIGURACIÓN DEL AGENTE IA Y PROVEEDOR LLM
+# PANTALLA DE SEGURIDAD / LOGIN (GATEKEEPER DE ACCESO)
+# -------------------------------------------------------------
+if st.session_state.auth_user is None:
+    st.markdown("<br>", unsafe_allow_html=True)
+    _, col_login, _ = st.columns([1.0, 1.4, 1.0])
+    with col_login:
+        with st.container(border=True):
+            logo_path = Path(__file__).resolve().parent / "logo diplo.png"
+            if logo_path.exists():
+                st.image(str(logo_path), width=220)
+            st.markdown("### 🔒 Control de Acceso — TFI Grupo_6_2026")
+            st.caption(
+                "**Diplomatura Universitaria en Ingeniería de Soluciones Basadas en IA (ISBIA) - Lidesia**  \n"
+                "FCEFyN — Universidad Nacional de Córdoba (UNC) / INTA"
+            )
+            st.markdown(
+                """
+                <div style="background-color: #f8fafc; border: 1px solid #cbd5e1; border-left: 4px solid #0f172a; padding: 8px 12px; border-radius: 6px; margin-bottom: 14px; font-size: 0.85rem; color: #334155;">
+                    🛡️ <b>Acceso Protegido:</b> Esta plataforma contiene desarrollos académicos del <b>Grupo_6_2026</b> y conexión en vivo a modelos de IA y catálogos satelitales. Ingresá la <b>Clave de Acceso</b> provista por el administrador del proyecto.
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
+            if st.session_state.failed_login_attempts >= MAX_FAILED_ATTEMPTS:
+                st.error(
+                    f"⛔ **Bloqueo Preventivo Anti-Fuerza Bruta:** Se superó el límite de {MAX_FAILED_ATTEMPTS} intentos fallidos en esta sesión. "
+                    "Recargá la página o contactá al administrador del Grupo 6."
+                )
+            else:
+                with st.form("gatekeeper_login_form", clear_on_submit=False):
+                    access_key_input = st.text_input(
+                        "🔑 Clave de Acceso Autorizada:",
+                        type="password",
+                        placeholder="Ingresá tu clave (ej. ADMIN-G6-2026 o clave asignada)..."
+                    )
+                    submit_login = st.form_submit_button("🔓 Verificar e Ingresar a la Plataforma", type="primary", use_container_width=True)
+
+                if submit_login:
+                    ok_auth, msg_auth, user_data = verify_access_key(access_key_input)
+                    if ok_auth and user_data:
+                        st.session_state.auth_user = user_data
+                        st.session_state.failed_login_attempts = 0
+                        st.session_state.user_queries_used = 0
+                        st.rerun()
+                    else:
+                        st.session_state.failed_login_attempts += 1
+                        rem = MAX_FAILED_ATTEMPTS - st.session_state.failed_login_attempts
+                        st.error(f"{msg_auth} (Intentos restantes: {rem})")
+
+            st.caption("🔐 *Autenticación verificada mediante Hash Criptográfico SHA-256 + Control de Cuota por Sesión.*")
+    st.stop()
+
+current_user = st.session_state.auth_user
+is_admin_user = current_user.get("role") == "admin"
+
+# -------------------------------------------------------------
+# SIDEBAR: PERFIL DE SESIÓN, GESTOR DE CLAVES Y CONFIGURACIÓN LLM
 # -------------------------------------------------------------
 with st.sidebar:
-    st.header("⚙️ Configuración del Sistema")
-    
-    with st.expander("🤖 Conexión al Modelo LLM", expanded=st.session_state.agent.client is None):
-        st.markdown(
-            "Configurá tu clave en **Streamlit Secrets** (`HF_TOKEN` / `OPENAI_API_KEY`) o ingresala directamente aquí:"
-        )
-        provider_choice = st.selectbox(
-            "Proveedor LLM:",
-            ["Automático (Secrets / .env)", "Hugging Face Router", "OpenAI"],
-            index=0
-        )
-        
-        user_key = st.text_input(
-            "API Key / Token:",
-            type="password",
-            placeholder="hf_... o sk-...",
-            help="Pegá tu token de Hugging Face (gratuito) o tu API Key de OpenAI."
-        )
-        
-        default_m = st.session_state.agent.model or "Qwen/Qwen2.5-72B-Instruct"
-        custom_model = st.text_input(
-            "Modelo:",
-            value=default_m,
-            help="HuggingFace: Qwen/Qwen2.5-72B-Instruct, meta-llama/Llama-3.3-70B-Instruct | OpenAI: gpt-4o-mini"
-        )
-        
-        if st.button("🔌 Conectar / Actualizar LLM", use_container_width=True, type="primary"):
-            st.session_state.agent.client = st.session_state.agent._init_client(
-                custom_key=user_key if user_key else None,
-                custom_provider=provider_choice if provider_choice != "Automático (Secrets / .env)" else None,
-                custom_model=custom_model if custom_model else None
-            )
+    role_icon = "👑 Administrador" if is_admin_user else "👤 Evaluador / Usuario"
+    max_q = current_user.get("max_queries_session", 30)
+    used_q = st.session_state.user_queries_used
+    st.markdown(
+        f"""
+        <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-left: 4px solid #16a34a; padding: 8px 10px; border-radius: 6px; margin-bottom: 8px; font-size: 0.80rem; color: #1e293b;">
+            🔓 <b>Sesión Activa:</b> {current_user.get('label')}<br>
+            🏷️ <b>Nivel:</b> <code>{role_icon}</code> &nbsp;|&nbsp; 💬 <b>Cuota LLM:</b> <code>{used_q}/{max_q}</code>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+    col_auth_b1, col_auth_b2 = st.columns([1.3, 1.0])
+    if is_admin_user:
+        if col_auth_b1.button("🔑 Gestor Claves", use_container_width=True, type="primary"):
+            dialog_gestor_claves()
+        if col_auth_b2.button("🚪 Salir", use_container_width=True):
+            st.session_state.auth_user = None
+            st.rerun()
+    else:
+        if st.button("🚪 Cerrar Sesión Segura", use_container_width=True):
+            st.session_state.auth_user = None
             st.rerun()
 
+    st.markdown("---")
+    st.header("⚙️ Configuración del Sistema")
+    
+    if is_admin_user:
+        with st.expander("🤖 Conexión al Modelo LLM (Admin)", expanded=True):
+            st.markdown(
+                "Configurá tu clave en **Streamlit Secrets** (`GROQ_API_KEY`, `HF_TOKEN` o `OPENAI_API_KEY`) o ingresala aquí:"
+            )
+            provider_choice = st.selectbox(
+                "Proveedor LLM:",
+                ["Automático (Secrets / .env)", "Groq (Gratuito y Ultrarrápido)", "Hugging Face Router", "OpenAI"],
+                index=0
+            )
+            
+            user_key = st.text_input(
+                "API Key / Token:",
+                type="password",
+                placeholder="gsk_... / hf_... / sk-...",
+                help="Pegá tu clave de Groq (gsk_...), Hugging Face (hf_...) u OpenAI (sk-...)."
+            )
+            
+            default_m = st.session_state.agent.model or "openai/gpt-oss-120b"
+            if "Groq" in provider_choice and "Qwen/Qwen" in default_m:
+                default_m = "openai/gpt-oss-120b"
+            elif "OpenAI" in provider_choice and "Qwen/Qwen" in default_m:
+                default_m = "gpt-4o-mini"
+
+            custom_model = st.text_input(
+                "Modelo:",
+                value=default_m,
+                help="Groq: openai/gpt-oss-120b, qwen/qwen3.8-27b | HuggingFace: Qwen/Qwen2.5-72B-Instruct | OpenAI: gpt-4o-mini"
+            )
+            
+            if st.button("🔌 Conectar / Actualizar LLM", use_container_width=True, type="primary"):
+                st.session_state.agent.last_error = None
+                st.session_state.agent.client = st.session_state.agent._init_client(
+                    custom_key=user_key if user_key else None,
+                    custom_provider=provider_choice if provider_choice != "Automático (Secrets / .env)" else None,
+                    custom_model=custom_model if custom_model else None
+                )
+                st.rerun()
+    else:
+        st.caption("🔒 *La configuración de API Keys del proveedor LLM está protegida y administrada por el Grupo 6.*")
+
     # Estado de Conexión en Sidebar
-    if st.session_state.agent.client is not None:
+    if getattr(st.session_state.agent, "last_error", None):
+        st.warning(f"⚠️ **Aviso de Cuota LLM (402/API):** Se agotaron los créditos gratuitos del proveedor externo. **El Asistente activó automáticamente el Motor Local de Contingencia** para responder sin interrupciones.")
+    elif st.session_state.agent.client is not None:
         st.success(f"🟢 **LLM Conectado:** `{st.session_state.agent.model}`")
     else:
-        st.warning("🟡 **Modo Local:** Sin API Key activa.\n\n*Podés ingresar tu token en esta barra lateral o agregar `HF_TOKEN` en los Secrets de Streamlit Cloud.*")
+        st.warning("🟡 **Modo Local:** Sin API Key activa.\n\n*Podés ingresar tu token en esta barra lateral o agregar `GROQ_API_KEY` / `HF_TOKEN` en Secrets.*")
     
+    st.markdown("---")
+    st.markdown("### 🛡️ Ingeniería de IA (ISBIA)")
+    st.caption("Capas activas: **Agent Harness**, **Guardrails OWASP**, **Sandbox COG** y **Contenedor**.")
+    sess_side = getattr(st.session_state.agent, "session_metrics", {}) or {}
+    if sess_side.get("queries_count", 0) > 0:
+        q_c = sess_side["queries_count"]
+        avg_l = round(sess_side.get("total_latency_ms", 0.0) / q_c, 1)
+        st.markdown(
+            f"""
+            <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px 10px; margin-bottom: 8px; font-size: 0.78rem; color: #334155;">
+                📊 <b>Telemetría de Sesión:</b><br>
+                • 🪙 <b>Tokens Totales:</b> <code>{sess_side.get('total_tokens', 0):,}</code> <i>(In: {sess_side.get('prompt_tokens', 0):,} / Out: {sess_side.get('completion_tokens', 0):,})</i><br>
+                • ⏱️ <b>Latencia Media:</b> <code>{avg_l} ms</code> ({q_c} consultas)<br>
+                • 🛠️ <b>Tools Invocadas:</b> <code>{sess_side.get('tools_invoked', 0)}</code> | 🛡️ <b>Bloqueos:</b> <code>{sess_side.get('security_blocks', 0)}</code>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+    if st.button("🛡️ Auditoría: Harness & Seguridad", use_container_width=True):
+        dialog_harness_seguridad()
+
+    st.markdown("---")
+    st.markdown("### 📡 Catálogo Satelital STAC")
+    sync_ver_side = st.session_state.get("stac_sync_version", 0)
+    st.caption(
+        "Sincronización dinámica con **Microsoft Planetary Computer** "
+        "(`sentinel-2-l2a`, `esa-worldcover`, `io-lulc-annual-v02`)."
+    )
+    if st.button("🔄 Sincronizar fuentes STAC", key="btn_sync_sidebar", use_container_width=True):
+        st.session_state.stac_sync_version = sync_ver_side + 1
+        cached_sources_catalog.clear()
+        with st.spinner("Actualizando colecciones y fechas desde STAC..."):
+            s_cat = cached_sources_catalog(tuple(st.session_state.current_bbox), st.session_state.stac_sync_version)
+        st.toast(
+            f"✅ Fuentes sincronizadas ({s_cat.get('synced_at')}) | "
+            f"Esri LULC: {s_cat['io_lulc']['years'][0]}–{s_cat['io_lulc']['years'][-1]} | "
+            f"S2: hasta {s_cat['sentinel2']['latest_scene_date']}"
+        )
+        st.rerun()
+
     st.markdown("---")
     st.markdown("### 📚 Acerca del Proyecto")
     st.markdown(
         "- **Diplomatura:** ISBIA - Lidesia - UNC\n"
         "- **Grupo:** 6 (2026)\n"
         "- **Datos:** STAC Microsoft Planetary Computer\n"
-        "- **Modelos:** ESA WorldCover 10m & Copernicus DEM 30m"
+        "- **Modelos:** ESA WorldCover 10m, Esri Annual LULC 10m & Copernicus DEM 30m"
     )
 
 # Encabezado y Subtítulo enriquecido con Stack Tecnológico y Timestamp de Compilación
@@ -409,10 +838,12 @@ with col_left:
         f_bounds = res_prev.get("folium_bounds")
         
         # Etiqueta clara con método y fecha/año para evitar cualquier confusión
-        is_ia = "WorldCover" in str(res_prev.get("modelo", "")) or "IA" in str(res_prev.get("modelo", ""))
+        modelo_str = str(res_prev.get("modelo", ""))
+        is_ia = any(k in modelo_str for k in ("WorldCover", "LULC", "Deep Learning", "IA"))
         if is_ia:
             year_tag = res_prev.get("año_referencia") or "2021"
-            overlay_name = f"🛰️ Cobertura [IA - WorldCover {year_tag}]"
+            src_short = "Esri LULC" if "Esri" in modelo_str or "LULC" in modelo_str else "WorldCover"
+            overlay_name = f"🛰️ Cobertura [IA - {src_short} {year_tag}]"
         else:
             fecha_tag = res_prev.get("fecha_analizada") or "S2"
             overlay_name = f"🛰️ Cobertura [Radiometría - S2 {fecha_tag}]"
@@ -615,8 +1046,8 @@ with col_left:
             if ub_res and ub_res.get("texto_formateado"):
                 st.info(f"🏛️ **Jurisdicción Territorial:** {ub_res['texto_formateado']} *(Fuente: {ub_res.get('fuente', 'IGN Georef')})*")
 
-            # Caso ESA WorldCover (8 Clases)
-            if "WorldCover" in str(res.get("modelo")):
+            # Caso Modelo IA Multiclase (ESA WorldCover o Esri 10m Annual LULC)
+            if any(k in str(res.get("modelo")) for k in ("WorldCover", "LULC", "Deep Learning")):
                 coberturas = res["coberturas"]
                 sorted_classes = sorted(coberturas.values(), key=lambda x: x["hectareas"], reverse=True)
                 top_classes = sorted_classes[:4]
@@ -726,17 +1157,28 @@ with col_left:
 with col_right:
     st.subheader("3. 🤖 Asistente (Consultas y RAG)")
     
-    # Verificar si el cliente LLM está conectado y mostrar badge informativo
+    # Verificar si el cliente LLM está conectado y mostrar badge informativo + acceso directo
     agent_inst = st.session_state.agent
     if agent_inst.client is None:
         agent_inst.client = agent_inst._init_client()
         
-    if agent_inst.client is not None:
-        st.caption(f"🟢 **LLM Conectado:** `{agent_inst.model}` (Inferencia Activa)")
-    else:
-        st.caption("🟡 **Modo Local:** Motor de Contingencia (Sin API Key / Fallback)")
+    llm_col_status, llm_col_cfg = st.columns([2.4, 1.2])
+    with llm_col_status:
+        if getattr(agent_inst, "last_error", None):
+            st.caption("🟠 **Fallback Automático Activo:** Cuota de API agotada → Respondiendo con Motor Local")
+        elif agent_inst.client is not None:
+            st.caption(f"🟢 **LLM Conectado:** `{agent_inst.model}` (Inferencia Activa)")
+        else:
+            st.caption("🟡 **Modo Local:** Motor de Contingencia (Sin API Key / Fallback)")
+    with llm_col_cfg:
+        with st.popover("🔌 Enlace LLM / Seg.", use_container_width=True):
+            st.markdown("**🤖 Estado del Modelo LLM**")
+            st.caption(f"Modelo activo: `{agent_inst.model}`")
+            st.caption("Podés cambiar el proveedor (`Groq`, `HuggingFace`, `OpenAI`) o la API Key en el panel **⚙️ Configuración del Sistema** de la barra lateral izquierda.")
+            if st.button("🛡️ Abrir Auditoría Harness & Seguridad", key="btn_audit_inline", use_container_width=True):
+                dialog_harness_seguridad()
 
-    q_col1, q_col2, q_col3 = st.columns([1.1, 1.3, 1.1])
+    q_col1, q_col2, q_col3, q_col4 = st.columns([1.05, 1.25, 1.05, 1.25])
     preset_query = None
     if q_col1.button("📉 Coberturas", use_container_width=True):
         preset_query = "Analizá y diagnosticá la distribución cuantitativa de coberturas obtenidas por el modelo en el área seleccionada, indicando superficies en hectáreas, porcentajes y su balance agroambiental."
@@ -744,20 +1186,39 @@ with col_right:
         preset_query = "Analizá y diagnosticá la red de drenaje hídrico superficial, pendientes (%) y dirección de escurrimiento en el área seleccionada, indicando el riesgo de erosión hídrica en sectores productivos."
     if q_col3.button("🛠️ Stack y Código", use_container_width=True):
         preset_query = "Explicá el stack tecnológico utilizado para construir esta app, su arquitectura modular y cómo intervenir o modificar el código según la guía del proyecto."
+    if q_col4.button("🛡️ Harness y Seguridad", use_container_width=True):
+        preset_query = "Explicá cómo se integran el Agent Harness, la Ciberseguridad (Guardrails OWASP), el Sandbox y los Contenedores en la arquitectura de este proyecto."
 
     chat_container = st.container(height=450)
     with chat_container:
         if not st.session_state.chat_history:
-            st.info("👋 Podés hacer consultas en lenguaje natural para que el asistente interprete los datos cuantitativos clasificados, evalúe la red de drenaje hídrico o explique cómo intervenir el código de la app.")
+            st.info("👋 Podés hacer consultas en lenguaje natural para que el asistente interprete los datos cuantitativos clasificados, evalúe la red de drenaje hídrico o explique la arquitectura, seguridad y código de la app.")
 
         for chat in st.session_state.chat_history:
             with st.chat_message(chat["role"]):
                 st.markdown(chat["content"])
 
+                # Mostrar píldora de telemetría (Tokens, Latencia, Pasos, Seguridad) bajo cada respuesta
+                if chat.get("metrics"):
+                    m_info = chat["metrics"]
+                    st.markdown(
+                        f"""
+                        <div style="background-color: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 5px; padding: 4px 10px; margin-top: 6px; margin-bottom: 4px; font-size: 0.76rem; color: #334155;">
+                            ⏱️ <b>Latencia:</b> <code>{m_info.get('total_latency_ms', 0)} ms</code> <i>(LLM: {m_info.get('llm_latency_ms', 0)} ms | Tool: {m_info.get('tool_latency_ms', 0)} ms)</i> &nbsp;|&nbsp;
+                            🪙 <b>Tokens:</b> <code>{m_info.get('total_tokens', 0):,}</code> <i>(Prompt: {m_info.get('prompt_tokens', 0):,} / Salida: {m_info.get('completion_tokens', 0):,})</i> &nbsp;|&nbsp;
+                            🔄 <b>Pasos ReAct:</b> <code>{m_info.get('steps_used', 1)}/{m_info.get('max_steps', 7)}</code> &nbsp;|&nbsp;
+                            🛡️ <b>Seguridad:</b> <code>{m_info.get('security_status', 'OK')}</code>
+                        </div>
+                        """,
+                        unsafe_allow_html=True
+                    )
+
                 if chat.get("trace"):
-                    with st.expander("🔍 Ver Traza de Razonamiento ReAct"):
+                    with st.expander("🔍 Ver Traza de Razonamiento ReAct y Telemetría por Paso"):
                         for step in chat["trace"]:
-                            st.markdown(f"**Paso {step['step']}:** `{step.get('action') or 'Respuesta Final'}`")
+                            lat_str = f" | ⏱️ Total: {step['latency_ms']} ms (LLM: {step.get('llm_latency_ms', 0)} ms, Tool: {step.get('tool_latency_ms', 0)} ms)" if step.get("latency_ms") is not None else ""
+                            tok_str = f" | 🪙 Tokens: {step.get('total_tokens', 0)} (In: {step.get('prompt_tokens', 0)}, Out: {step.get('completion_tokens', 0)})" if step.get("total_tokens") else ""
+                            st.markdown(f"**Paso {step['step']}:** `{step.get('action') or 'Respuesta Final'}`{lat_str}{tok_str}")
                             st.text(step["thought_and_output"])
                             if step.get("observation"):
                                 st.caption("Observación:")
@@ -767,22 +1228,29 @@ with col_right:
     query_to_run = preset_query or user_input
 
     if query_to_run:
-        admin_context = cached_admin_location(tuple(st.session_state.current_bbox)).get("texto_formateado", "Argentina")
-        final_query = f"{query_to_run} [BBox activo: {st.session_state.current_bbox}] [Ubicación Administrativa: {admin_context}]"
-        if st.session_state.classification_result:
-            final_query += f" [Última Clasificación: {json.dumps(st.session_state.classification_result)}]"
-        if st.session_state.get("drainage_result"):
-            final_query += f" [Último Análisis de Drenaje Hídrico: {json.dumps(st.session_state.drainage_result)}]"
+        max_allowed_q = current_user.get("max_queries_session", 30)
+        if st.session_state.user_queries_used >= max_allowed_q:
+            st.warning(f"⛔ Alcanzaste el límite máximo de consultas permitido para tu clave en esta sesión ({max_allowed_q} consultas).")
+        else:
+            st.session_state.user_queries_used += 1
+            admin_context = cached_admin_location(tuple(st.session_state.current_bbox)).get("texto_formateado", "Argentina")
+            final_query = f"{query_to_run} [BBox activo: {st.session_state.current_bbox}] [Ubicación Administrativa: {admin_context}]"
+            if st.session_state.classification_result:
+                final_query += f" [Última Clasificación: {json.dumps(st.session_state.classification_result)}]"
+            if st.session_state.get("drainage_result"):
+                final_query += f" [Último Análisis de Drenaje Hídrico: {json.dumps(st.session_state.drainage_result)}]"
 
-        st.session_state.chat_history.append({"role": "user", "content": query_to_run})
+            st.session_state.chat_history.append({"role": "user", "content": query_to_run})
 
-        with st.spinner("🤖 El asistente está razonando e integrando evidencia..."):
-            answer, trace = st.session_state.agent.run(final_query)
+            with st.spinner("🤖 El asistente está razonando e integrando evidencia..."):
+                answer, trace = st.session_state.agent.run(final_query)
+                run_metrics = getattr(st.session_state.agent, "last_run_metrics", {})
 
-            st.session_state.chat_history.append({
-                "role": "assistant",
-                "content": answer,
-                "trace": trace
-            })
-            st.rerun()
+                st.session_state.chat_history.append({
+                    "role": "assistant",
+                    "content": answer,
+                    "trace": trace,
+                    "metrics": run_metrics
+                })
+                st.rerun()
 

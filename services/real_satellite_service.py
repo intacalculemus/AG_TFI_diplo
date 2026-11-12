@@ -100,6 +100,19 @@ ESA_WORLDCOVER_CLASSES = {
     100: {"name": "Musgos y Líquenes (Moss/lichen)", "color": "#fae6a0", "rgb": [250, 230, 160]}
 }
 
+# Diccionario oficial de clases de Esri / Impact Observatory 10m Annual LULC (io-lulc-annual-v02)
+IO_LULC_CLASSES = {
+    1: {"name": "Cuerpos de Agua (Water)", "color": "#1a5bab", "rgb": [26, 91, 171]},
+    2: {"name": "Bosque Nativo / Árboles (Trees)", "color": "#358221", "rgb": [53, 130, 33]},
+    4: {"name": "Humedales / Veg. Inundable (Flooded veg.)", "color": "#87d19e", "rgb": [135, 209, 158]},
+    5: {"name": "Cultivos Agrícolas (Crops)", "color": "#ffdb5c", "rgb": [255, 219, 92]},
+    7: {"name": "Área Urbana / Construida (Built area)", "color": "#ed022a", "rgb": [237, 2, 42]},
+    8: {"name": "Suelo Desnudo / Barbecho (Bare ground)", "color": "#b4afa8", "rgb": [180, 175, 168]},
+    9: {"name": "Nieve y Hielo (Snow/ice)", "color": "#f2faff", "rgb": [242, 250, 255]},
+    10: {"name": "Nubes (Clouds)", "color": "#c8c8c8", "rgb": [200, 200, 200]},
+    11: {"name": "Pastizal / Monte / Arbustal (Rangeland)", "color": "#dace81", "rgb": [218, 206, 129]}
+}
+
 def get_stac_catalog():
     """Inicializa y firma el cliente STAC de Planetary Computer."""
     return pystac_client.Client.open(
@@ -107,14 +120,112 @@ def get_stac_catalog():
         modifier=planetary_computer.sign_inplace
     )
 
+def discover_available_sources(bbox: List[float] = None) -> Dict[str, Any]:
+    """
+    Consulta en vivo el catálogo STAC de Microsoft Planetary Computer para descubrir
+    dinámicamente qué colecciones, años y rangos de fechas están disponibles para el BBox.
+    """
+    import datetime
+    import re
+
+    target_bbox = bbox or DEFAULT_BBOX
+    now = datetime.datetime.now()
+    current_year = now.year
+
+    # Valores por defecto seguros en caso de caída temporal de red
+    wc_years: List[str] = []
+    io_years: List[str] = []
+    s2_latest_date = now.strftime("%Y-%m-%d")
+    stac_online = False
+
+    try:
+        catalog = get_stac_catalog()
+
+        # 1. Descubrir años disponibles en ESA WorldCover (esa-worldcover)
+        wc_search = catalog.search(
+            collections=["esa-worldcover"],
+            bbox=target_bbox,
+            max_items=20
+        )
+        for it in wc_search.items():
+            start_dt = str(it.properties.get("start_datetime") or "")
+            m = re.search(r"(20\d{2})", start_dt) or re.search(r"_(20\d{2})_", it.id)
+            if m:
+                yr = m.group(1)
+                if yr not in wc_years:
+                    wc_years.append(yr)
+
+        # 2. Descubrir años disponibles en Esri 10m Annual LULC (io-lulc-annual-v02)
+        io_search = catalog.search(
+            collections=["io-lulc-annual-v02"],
+            bbox=target_bbox,
+            max_items=30
+        )
+        for it in io_search.items():
+            start_dt = str(it.properties.get("start_datetime") or "")
+            m = re.search(r"(20\d{2})", start_dt) or re.search(r"-(20\d{2})$", it.id)
+            if m:
+                yr = m.group(1)
+                if yr not in io_years:
+                    io_years.append(yr)
+
+        # 3. Verificar última fecha real disponible de Sentinel-2 L2A (ventana reciente de 60 días para respuesta instantánea)
+        recent_start = (now.date() - datetime.timedelta(days=60)).strftime("%Y-%m-%d")
+        recent_end = now.date().strftime("%Y-%m-%d")
+        s2_recent = catalog.search(
+            collections=["sentinel-2-l2a"],
+            bbox=target_bbox,
+            datetime=f"{recent_start}/{recent_end}",
+            max_items=1
+        )
+        recent_items = list(s2_recent.items())
+        if recent_items and recent_items[0].datetime:
+            s2_latest_date = recent_items[0].datetime.strftime("%Y-%m-%d")
+
+        stac_online = True
+    except Exception as e:
+        print(f"Aviso en discover_available_sources: {e}")
+
+    wc_years = sorted(wc_years, reverse=True) if wc_years else ["2021", "2020"]
+    io_years = sorted(io_years, reverse=True) if io_years else ["2023", "2022", "2021", "2020", "2019", "2018", "2017"]
+
+    # Serie dinámica de años para Sentinel-2 L2A (desde 2017 hasta el año calendario actual)
+    s2_years = [str(y) for y in range(current_year, 2016, -1)]
+
+    return {
+        "stac_online": stac_online,
+        "synced_at": now.strftime("%d/%m/%Y %H:%M:%S"),
+        "esa_worldcover": {
+            "collection_id": "esa-worldcover",
+            "nombre": "ESA WorldCover 10m (ESA/VITO - 11 clases)",
+            "years": wc_years,
+        },
+        "io_lulc": {
+            "collection_id": "io-lulc-annual-v02",
+            "nombre": "Esri / Impact Observatory 10m Annual LULC (Serie Anual - 9 clases)",
+            "years": io_years,
+        },
+        "sentinel2": {
+            "collection_id": "sentinel-2-l2a",
+            "years": s2_years,
+            "min_date": "2017-01-01",
+            "max_date": now.date().strftime("%Y-%m-%d"),
+            "latest_scene_date": s2_latest_date,
+        }
+    }
+
 def search_real_scenes(
     bbox: List[float] = None,
-    date_range: str = "2023-01-01/2024-12-31",
+    date_range: str = None,
     max_cloud: float = 10.0,
     limit: int = 10
 ) -> List[Dict[str, Any]]:
     """Busca escenas Sentinel-2 L2A en STAC."""
+    import datetime
     target_bbox = bbox or DEFAULT_BBOX
+    if not date_range:
+        curr_yr = datetime.date.today().year
+        date_range = f"{curr_yr - 1}-01-01/{curr_yr}-12-31"
     try:
         catalog = get_stac_catalog()
         search = catalog.search(
@@ -147,32 +258,68 @@ def search_real_scenes(
 
 def classify_with_esa_worldcover(
     bbox: List[float] = None,
-    year: str = "2021"
+    year: str = "2021",
+    collection_id: str = "auto"
 ) -> Dict[str, Any]:
     """
-    Clasifica el recuadro territorial utilizando el Modelo de IA Deep Learning ESA WorldCover a 10m de resolución.
+    Clasifica el recuadro territorial utilizando Modelos de IA Deep Learning a 10m de resolución:
+    - 'esa-worldcover': ESA WorldCover 10m (2020, 2021+)
+    - 'io-lulc-annual-v02': Esri / Impact Observatory 10m Annual Land Cover (2017-2023+)
+    Si collection_id == 'auto', usa ESA WorldCover si el año existe allí (ej. 2020, 2021) y si no,
+    consulta automáticamente Esri 10m Annual LULC (io-lulc-annual-v02).
     """
     target_bbox = bbox or DEFAULT_BBOX
+    year_str = str(year).strip()
+
+    # Verificar tamaño del BBox antes de abrir STAC para mantener respuesta rápida en Sandbox
+    dim_check = estimate_bbox_dimensions(target_bbox, res_m=10.0)
+    if dim_check["bloqueado"]:
+        raise ValueError(dim_check["mensaje"])
+
     catalog = get_stac_catalog()
 
-    # Búsqueda del tile en la colección esa-worldcover
+    # Determinar colección a utilizar
+    chosen_collection = collection_id
+    if chosen_collection in (None, "", "auto"):
+        chosen_collection = "esa-worldcover" if year_str in ("2020", "2021") else "io-lulc-annual-v02"
+
     search = catalog.search(
-        collections=["esa-worldcover"],
+        collections=[chosen_collection],
         bbox=target_bbox,
-        max_items=2
+        max_items=25
     )
     items = list(search.items())
+
+    # Fallback automático a la otra colección de IA si no se encontró el año en la primera
+    if not items or not any(year_str in it.id or year_str in str(it.properties.get("start_datetime", "")) for it in items):
+        alt_collection = "io-lulc-annual-v02" if chosen_collection == "esa-worldcover" else "esa-worldcover"
+        alt_search = catalog.search(collections=[alt_collection], bbox=target_bbox, max_items=25)
+        alt_items = list(alt_search.items())
+        if any(year_str in it.id or year_str in str(it.properties.get("start_datetime", "")) for it in alt_items):
+            chosen_collection = alt_collection
+            items = alt_items
+
     if not items:
-        raise ValueError(f"No se encontró cobertura de ESA WorldCover para el BBox {target_bbox}.")
+        raise ValueError(f"No se encontró cobertura del modelo IA ({chosen_collection}) para el BBox {target_bbox}.")
 
     # Seleccionar el item del año solicitado o el primero disponible
     selected_item = items[0]
     for it in items:
-        if year in it.id:
+        if year_str in it.id or year_str in str(it.properties.get("start_datetime", "")):
             selected_item = it
             break
 
-    map_url = selected_item.assets["map"].href
+    is_io_lulc = (chosen_collection == "io-lulc-annual-v02")
+    asset_key = "data" if is_io_lulc else "map"
+    classes_dict = IO_LULC_CLASSES if is_io_lulc else ESA_WORLDCOVER_CLASSES
+    model_label = (
+        "Esri / Impact Observatory 10m LULC (Deep Learning)"
+        if is_io_lulc
+        else "ESA WorldCover 10m (Deep Learning / ESA-VITO)"
+    )
+    short_tag = "io_lulc" if is_io_lulc else "worldcover"
+
+    map_url = selected_item.assets[asset_key].href
 
     raster_env = rasterio.Env(
         GDAL_DISABLE_READDIR_ON_OPEN="EMPTY_DIR",
@@ -188,7 +335,7 @@ def classify_with_esa_worldcover(
             valid_window = raw_window.intersection(img_window).round_lengths().round_offsets()
 
             if valid_window.width <= 0 or valid_window.height <= 0:
-                raise ValueError("El recuadro seleccionado queda fuera de los límites del tile de ESA WorldCover.")
+                raise ValueError(f"El recuadro seleccionado queda fuera de los límites del tile de {model_label}.")
 
             requested_pixels = int(valid_window.width * valid_window.height)
             if requested_pixels > MAX_ALLOWED_PIXELS:
@@ -225,7 +372,7 @@ def classify_with_esa_worldcover(
         code = int(code_val)
         if code == 0:
             continue
-        info = ESA_WORLDCOVER_CLASSES.get(code, {"name": f"Clase {code}", "color": "#7f7f7f", "rgb": [127, 127, 127]})
+        info = classes_dict.get(code, {"name": f"Clase {code}", "color": "#7f7f7f", "rgb": [127, 127, 127]})
         pct = round((count_val / total_px) * 100, 2)
         ha = round(count_val * 0.01, 1)  # 10m x 10m = 0.01 ha
 
@@ -251,10 +398,9 @@ def classify_with_esa_worldcover(
 
     # Generar visualización con Matplotlib
     fig, ax = plt.subplots(figsize=(9, 7))
-    # Crear colormap indexado para la visualización
     ax.imshow(rgba_grid, origin="upper")
     ax.set_title(
-        f"Clasificación Modelo IA: ESA WorldCover 10m ({year})\n"
+        f"Clasificación Modelo IA: {model_label} ({year_str})\n"
         f"Superficie: {total_ha:,.1f} ha ({total_px:,} píxeles clasificados)",
         fontsize=11,
         fontweight="bold"
@@ -264,20 +410,20 @@ def classify_with_esa_worldcover(
     ax.legend(handles=legend_patches, loc="upper right", bbox_to_anchor=(1.35, 1.0), framealpha=0.92, fontsize=9)
     plt.tight_layout()
 
-    output_filename = f"clasificacion_ia_worldcover_{year}_{abs(int(target_bbox[0]*100))}.png"
+    output_filename = f"clasificacion_ia_{short_tag}_{year_str}_{abs(int(target_bbox[0]*100))}.png"
     output_path = OUTPUTS_DIR / output_filename
     plt.savefig(output_path, dpi=150, bbox_inches="tight")
     plt.close()
 
     # Guardar overlay RGBA para Folium
-    overlay_filename = f"overlay_ia_worldcover_{year}_{abs(int(target_bbox[0]*100))}.png"
+    overlay_filename = f"overlay_ia_{short_tag}_{year_str}_{abs(int(target_bbox[0]*100))}.png"
     overlay_path = OUTPUTS_DIR / overlay_filename
     img_overlay = Image.fromarray(rgba_grid, mode="RGBA")
     img_overlay.save(overlay_path)
 
     # Construir resumen textual
     resumen_lines = [
-        f"Clasificación realizada con el modelo de IA Deep Learning ESA WorldCover 10m ({year}):",
+        f"Clasificación realizada con el modelo de IA Deep Learning {model_label} ({year_str}):",
         f"• Superficie Total: {total_ha:,.1f} ha ({total_px:,} píxeles analizados)"
     ]
     for c in sorted(coberturas_detalle.values(), key=lambda x: x["hectareas"], reverse=True):
@@ -285,8 +431,9 @@ def classify_with_esa_worldcover(
 
     return {
         "status": "success",
-        "modelo": f"ESA WorldCover 10m (Deep Learning / ESA-VITO)",
-        "año_referencia": year,
+        "modelo": model_label,
+        "coleccion_stac": chosen_collection,
+        "año_referencia": year_str,
         "superficie_total_ha": total_ha,
         "total_pixeles_10m": total_px,
         "dimensiones_pixeles": [h, w],

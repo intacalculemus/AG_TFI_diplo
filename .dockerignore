@@ -1,0 +1,13 @@
+# Excluir secretos, entornos virtuales y archivos temporales de la imagen Docker
+.env
+.git
+.gitignore
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+env/
+outputs/*.png
+outputs/*.tif
+*.zip

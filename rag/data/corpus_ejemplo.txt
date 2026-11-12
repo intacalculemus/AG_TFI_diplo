@@ -110,3 +110,25 @@ Contenido: Este proyecto implementa un agente bajo el paradigma ReAct (Reasoning
 5. Justificación Académica y Práctica para el TFI (Diplomatura ISBIA - FCEFyN UNC):
 - La construcción nativa del agente evidencia un entendimiento riguroso de la mecánica interna de los agentes autónomos con uso de herramientas (Tool Use), eliminando la dependencia de "cajas negras" y garantizando total control, transparencia y fiabilidad en el análisis de coberturas terrestres.
 
+[DOC_ID: HARNESS_CIBERSEGURIDAD_SANDBOX_CONTENEDORES]
+Título: Articulación de Agent Harness, Ciberseguridad (Guardrails), Sandbox y Contenedores en el Proyecto
+Contenido: Para cumplir con los estándares de Ingeniería de Soluciones Basadas en IA (Diplomatura ISBIA - FCEFyN UNC), el sistema envuelve al agente GeoReAct con cuatro capas desacopladas de ingeniería:
+
+1. Agent Harness (Arnés de Ejecución y Evaluación - agent/core.py y agent/harness.py):
+- Runtime Harness: Controla el ciclo de vida del agente limitando las iteraciones (AGENT_MAX_STEPS = 7), aplicando parseo determinístico por expresiones regulares (agent/parser.py), registrando telemetría de latencia por paso en la traza y activando un motor de contingencia (fallback local) si la API externa falla.
+- Evaluation Harness (agent/harness.py y eval_harness.py): Banco de pruebas automatizado con un Golden Dataset de casos de prueba agroambientales y de seguridad. Evalúa objetivamente: Precisión en Selección de Herramientas (Tool Selection Accuracy), Cumplimiento del Protocolo ReAct (Protocol Compliance), Bloqueo de Ataques (Security Pass Rate) y Latencia.
+
+2. Ciberseguridad en Sistemas Agénticos (Guardrails OWASP LLM Top 10 - agent/security.py):
+- Input Guardrail (OWASP LLM01 - Prompt Injection): Analiza la entrada del usuario antes del bucle ReAct para bloquear intentos de jailbreak ("ignorá las instrucciones anteriores", exfiltración de System Prompt o claves) e inyección de delimitadores falsos ("Observation:", "Action:").
+- Output Guardrail & Gestión de Secretos (OWASP LLM02): Enmascara automáticamente cualquier patrón de API Key (gsk_*, hf_*, sk-*) en salidas o errores y gestiona credenciales vía Streamlit Secrets (st.secrets) o variables de entorno (.env excluido en .gitignore).
+- Validación de Parámetros de Herramientas (OWASP LLM07): Previene ataques de Path Traversal (../) y valida esquemas de coordenadas geográficas EPSG:4326.
+
+3. Sandbox de Ejecución (Aislamiento en Dos Niveles - tools/base.py y Streamlit Cloud/Docker):
+- Sandbox de Aplicación (tools/base.py): Ejecuta cada herramienta dentro de un contenedor lógico con límite de tiempo (timeout de 45s vía ThreadPoolExecutor), lista blanca estricta de herramientas (sin eval/exec ni acceso a bash), enjaulado de archivos (Filesystem Jail restringido a /outputs y /data) y cuota máxima de superficie satelital (máx. 250.000 ha por consulta COG para prevenir agotamiento de memoria RAM / DoS OWASP LLM04).
+- Sandbox de Sistema Operativo: Aislamiento de procesos en contenedor Linux sin privilegios de root (non-root user) y con límites físicos de CPU y RAM.
+
+4. Contenedores y Despliegue Cloud/Híbrido (Streamlit Cloud + Dockerfile):
+- En Streamlit Community Cloud: La plataforma aprovisiona automáticamente un contenedor Linux aislado donde las capas de Python (Ciberseguridad, Harness y Sandbox) se ejecutan en vivo en cada petición sin necesidad de instalar servidores locales.
+- Especificación Docker (Dockerfile y docker-compose.yml): Garantiza reproducibilidad científica de las librerías C++ geoespaciales (GDAL, Rasterio, PROJ) y permite el despliegue soberano On-Premise en servidores institucionales de INTA o UNC con usuario no privilegiado (appuser) y límite de memoria RAM (2 GB).
+
+

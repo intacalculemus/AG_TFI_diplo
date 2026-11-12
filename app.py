@@ -23,7 +23,23 @@ import json
 import os
 import math
 from pathlib import Path
+import importlib
+import sys
 from shapely.geometry import shape
+
+# Recarga defensiva ante hot-reload en caliente de Streamlit Cloud tras un git push
+import services.real_satellite_service as _rss_mod
+if not hasattr(_rss_mod, "discover_available_sources") or not hasattr(_rss_mod, "IO_LULC_CLASSES"):
+    for _mod_name in [
+        "config",
+        "services.real_satellite_service",
+        "tools.base",
+        "tools.land_cover",
+        "tools.geo_catalog",
+        "agent.core",
+    ]:
+        if _mod_name in sys.modules:
+            importlib.reload(sys.modules[_mod_name])
 
 from agent.core import GeoReActAgent
 from agent.harness import run_evaluation_harness

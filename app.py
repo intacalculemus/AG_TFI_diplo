@@ -678,8 +678,7 @@ with col_left:
 
     # Herramienta de dibujo (Draw) - Solo Rectángulo con soporte de edición y borrado (papelera)
     draw = Draw(
-        export=True,
-        filename="area_seleccionada.geojson",
+        export=False,
         position="topleft",
         draw_options={
             "polyline": False,
@@ -699,9 +698,9 @@ with col_left:
 
     # Configurar returned_objects=['last_active_drawing', 'all_drawings'] y key dinámica
     map_output = st_folium(
-        m, 
-        width="100%", 
-        height=420, 
+        m,
+        height=420,
+        use_container_width=True,
         returned_objects=["last_active_drawing", "all_drawings"],
         key=f"main_map_{st.session_state.map_version}"
     )

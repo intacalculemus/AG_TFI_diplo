@@ -44,16 +44,6 @@ if not hasattr(_rss_mod, "discover_available_sources") or not hasattr(_rss_mod, 
 from agent.core import GeoReActAgent
 from agent.harness import run_evaluation_harness
 from agent.security import get_security_and_sandbox_status
-from agent.auth import (
-    verify_access_key,
-    list_access_keys,
-    create_access_key,
-    toggle_access_key,
-    delete_access_key,
-    update_master_or_key_password,
-    get_audit_log,
-    MAX_FAILED_ATTEMPTS,
-)
 from tools.base import default_registry
 from services.real_satellite_service import (
     search_real_scenes,
@@ -345,120 +335,6 @@ def dialog_harness_seguridad():
         st.table(table_rows)
 
 
-@st.dialog("🔑 Gestor de Claves de Acceso y Auditoría de Usuarios", width="large")
-def dialog_gestor_claves():
-    """Panel de administración (exclusivo rol Admin) para crear, revocar y auditar claves de acceso."""
-    st.markdown(
-        """
-        <div style="background-color: #f0f9ff; border: 1px solid #bae6fd; border-left: 4px solid #0284c7; padding: 8px 12px; border-radius: 6px; margin-bottom: 12px; font-size: 0.86rem; color: #0f172a;">
-            🔐 <b>Seguridad Criptográfica (SHA-256 + Salt):</b> Las claves que generes se almacenan hasheadas de forma irreversible en <code>data/access_keys_store.json</code>. Entregá la clave en texto únicamente al destinatario autorizado.
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-
-    tab_new, tab_list, tab_audit = st.tabs([
-        "➕ Emitir Nueva Clave",
-        "📋 Claves Emitidas (Activar / Revocar)",
-        "🕵️ Historial de Ingresos"
-    ])
-
-    with tab_new:
-        st.markdown("##### Crear nueva credencial de acceso")
-        with st.form("form_create_access_key", clear_on_submit=True):
-            c_f1, c_f2 = st.columns([1.4, 1.0])
-            new_label = c_f1.text_input(
-                "Nombre o Destinatario:",
-                placeholder="Ej: Tribunal Docente ISBIA / Compañero Grupo 6..."
-            )
-            new_role = c_f2.selectbox(
-                "Nivel de Permiso (RBAC):",
-                options=["usuario", "admin"],
-                format_func=lambda r: "👤 Usuario / Evaluador (Uso de App sin ver API Keys)" if r == "usuario" else "👑 Administrador (Acceso Total + Gestor de Claves)"
-            )
-            c_f3, c_f4 = st.columns([1.4, 1.0])
-            new_raw_key = c_f3.text_input(
-                "Clave a entregar (mín. 5 caracteres):",
-                placeholder="Ej: ISBIA-EVAL-2026"
-            )
-            new_quota = c_f4.number_input(
-                "Cuota máx. consultas LLM por sesión:",
-                min_value=5,
-                max_value=500,
-                value=30,
-                step=5
-            )
-            btn_create = st.form_submit_button("🔑 Registrar y Activar Clave", type="primary", use_container_width=True)
-
-        if btn_create:
-            ok, msg = create_access_key(
-                label=new_label,
-                raw_key=new_raw_key,
-                role=new_role,
-                max_queries_session=int(new_quota)
-            )
-            if ok:
-                st.success(f"{msg}\n\n📋 **Clave para entregar:** `{new_raw_key.strip()}`")
-            else:
-                st.error(msg)
-
-    with tab_list:
-        keys_data = list_access_keys()
-        st.markdown(f"##### Claves Registradas ({len(keys_data)})")
-        for k in keys_data:
-            k_id = k["id"]
-            is_act = k.get("active", True)
-            badge_est = "🟢 ACTIVA" if is_act else "🔴 REVOCADA"
-            role_badge = "👑 Admin" if k.get("role") == "admin" else "👤 Usuario"
-            with st.container(border=True):
-                col_k1, col_k2, col_k3 = st.columns([2.2, 1.1, 1.1])
-                with col_k1:
-                    st.markdown(f"**{k['label']}** &nbsp; (`{k_id}`)")
-                    st.caption(
-                        f"{badge_est} | Rol: **{role_badge}** | Pista: `{k.get('key_hint')}` | "
-                        f"Cuota: `{k.get('max_queries_session', 30)}` consultas | "
-                        f"Ingresos: `{k.get('login_count', 0)}` (Último: {k.get('last_login', 'Nunca')})"
-                    )
-                with col_k2:
-                    if not k.get("is_master"):
-                        btn_lbl = "⏸️ Revocar / Pausar" if is_act else "▶️ Reactivar Clave"
-                        if st.button(btn_lbl, key=f"tog_{k_id}", use_container_width=True):
-                            ok_t, msg_t = toggle_access_key(k_id)
-                            if ok_t:
-                                st.toast(msg_t)
-                                st.rerun()
-                            else:
-                                st.warning(msg_t)
-                    else:
-                        st.caption("🔒 *Clave Maestra*")
-                with col_k3:
-                    if not k.get("is_master"):
-                        if st.button("🗑️ Eliminar", key=f"del_{k_id}", use_container_width=True):
-                            ok_d, msg_d = delete_access_key(k_id)
-                            if ok_d:
-                                st.toast(msg_d)
-                                st.rerun()
-                            else:
-                                st.warning(msg_d)
-                    else:
-                        with st.popover("✏️ Cambiar Clave", use_container_width=True):
-                            new_master_pw = st.text_input("Nueva clave Admin:", type="password", key=f"pw_{k_id}")
-                            if st.button("Guardar", key=f"sav_{k_id}", type="primary", use_container_width=True):
-                                ok_u, msg_u = update_master_or_key_password(k_id, new_master_pw)
-                                if ok_u:
-                                    st.success(msg_u)
-                                else:
-                                    st.error(msg_u)
-
-    with tab_audit:
-        logs = get_audit_log()
-        st.markdown("##### Registro de Eventos de Seguridad e Ingresos")
-        if not logs:
-            st.info("Aún no se registran eventos en el historial.")
-        else:
-            st.table(logs[:20])
-
-
 # Fecha y hora de compilación / última actualización del archivo
 app_mtime = os.path.getmtime(__file__)
 last_update_str = datetime.datetime.fromtimestamp(app_mtime).strftime("%d/%m/%Y %H:%M:%S")
@@ -494,141 +370,50 @@ if "drawn_geometry" not in st.session_state:
     st.session_state.drawn_geometry = None
 if "last_searched_location" not in st.session_state:
     st.session_state.last_searched_location = None
-if "auth_user" not in st.session_state:
-    st.session_state.auth_user = None
-if "failed_login_attempts" not in st.session_state:
-    st.session_state.failed_login_attempts = 0
-if "user_queries_used" not in st.session_state:
-    st.session_state.user_queries_used = 0
 
 # -------------------------------------------------------------
-# PANTALLA DE SEGURIDAD / LOGIN (GATEKEEPER DE ACCESO)
-# -------------------------------------------------------------
-if st.session_state.auth_user is None:
-    st.markdown("<br>", unsafe_allow_html=True)
-    _, col_login, _ = st.columns([1.0, 1.4, 1.0])
-    with col_login:
-        with st.container(border=True):
-            logo_path = Path(__file__).resolve().parent / "logo diplo.png"
-            if logo_path.exists():
-                st.image(str(logo_path), width=220)
-            st.markdown("### 🔒 Control de Acceso — TFI Grupo_6_2026")
-            st.caption(
-                "**Diplomatura Universitaria en Ingeniería de Soluciones Basadas en IA (ISBIA) - Lidesia**  \n"
-                "FCEFyN — Universidad Nacional de Córdoba (UNC) / INTA"
-            )
-            st.markdown(
-                """
-                <div style="background-color: #f8fafc; border: 1px solid #cbd5e1; border-left: 4px solid #0f172a; padding: 8px 12px; border-radius: 6px; margin-bottom: 14px; font-size: 0.85rem; color: #334155;">
-                    🛡️ <b>Acceso Protegido:</b> Esta plataforma contiene desarrollos académicos del <b>Grupo_6_2026</b> y conexión en vivo a modelos de IA y catálogos satelitales. Ingresá la <b>Clave de Acceso</b> provista por el administrador del proyecto.
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
-
-            if st.session_state.failed_login_attempts >= MAX_FAILED_ATTEMPTS:
-                st.error(
-                    f"⛔ **Bloqueo Preventivo Anti-Fuerza Bruta:** Se superó el límite de {MAX_FAILED_ATTEMPTS} intentos fallidos en esta sesión. "
-                    "Recargá la página o contactá al administrador del Grupo 6."
-                )
-            else:
-                with st.form("gatekeeper_login_form", clear_on_submit=False):
-                    access_key_input = st.text_input(
-                        "🔑 Clave de Acceso Autorizada:",
-                        type="password",
-                        placeholder="Ingresá tu clave (ej. ADMIN-G6-2026 o clave asignada)..."
-                    )
-                    submit_login = st.form_submit_button("🔓 Verificar e Ingresar a la Plataforma", type="primary", use_container_width=True)
-
-                if submit_login:
-                    ok_auth, msg_auth, user_data = verify_access_key(access_key_input)
-                    if ok_auth and user_data:
-                        st.session_state.auth_user = user_data
-                        st.session_state.failed_login_attempts = 0
-                        st.session_state.user_queries_used = 0
-                        st.rerun()
-                    else:
-                        st.session_state.failed_login_attempts += 1
-                        rem = MAX_FAILED_ATTEMPTS - st.session_state.failed_login_attempts
-                        st.error(f"{msg_auth} (Intentos restantes: {rem})")
-
-            st.caption("🔐 *Autenticación verificada mediante Hash Criptográfico SHA-256 + Control de Cuota por Sesión.*")
-    st.stop()
-
-current_user = st.session_state.auth_user
-is_admin_user = current_user.get("role") == "admin"
-
-# -------------------------------------------------------------
-# SIDEBAR: PERFIL DE SESIÓN, GESTOR DE CLAVES Y CONFIGURACIÓN LLM
+# SIDEBAR: CONFIGURACIÓN DEL SISTEMA E INGENIERÍA DE IA
 # -------------------------------------------------------------
 with st.sidebar:
-    role_icon = "👑 Administrador" if is_admin_user else "👤 Evaluador / Usuario"
-    max_q = current_user.get("max_queries_session", 30)
-    used_q = st.session_state.user_queries_used
-    st.markdown(
-        f"""
-        <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-left: 4px solid #16a34a; padding: 8px 10px; border-radius: 6px; margin-bottom: 8px; font-size: 0.80rem; color: #1e293b;">
-            🔓 <b>Sesión Activa:</b> {current_user.get('label')}<br>
-            🏷️ <b>Nivel:</b> <code>{role_icon}</code> &nbsp;|&nbsp; 💬 <b>Cuota LLM:</b> <code>{used_q}/{max_q}</code>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-    col_auth_b1, col_auth_b2 = st.columns([1.3, 1.0])
-    if is_admin_user:
-        if col_auth_b1.button("🔑 Gestor Claves", use_container_width=True, type="primary"):
-            dialog_gestor_claves()
-        if col_auth_b2.button("🚪 Salir", use_container_width=True):
-            st.session_state.auth_user = None
-            st.rerun()
-    else:
-        if st.button("🚪 Cerrar Sesión Segura", use_container_width=True):
-            st.session_state.auth_user = None
-            st.rerun()
-
-    st.markdown("---")
     st.header("⚙️ Configuración del Sistema")
     
-    if is_admin_user:
-        with st.expander("🤖 Conexión al Modelo LLM (Admin)", expanded=True):
-            st.markdown(
-                "Configurá tu clave en **Streamlit Secrets** (`GROQ_API_KEY`, `HF_TOKEN` o `OPENAI_API_KEY`) o ingresala aquí:"
-            )
-            provider_choice = st.selectbox(
-                "Proveedor LLM:",
-                ["Automático (Secrets / .env)", "Groq (Gratuito y Ultrarrápido)", "Hugging Face Router", "OpenAI"],
-                index=0
-            )
-            
-            user_key = st.text_input(
-                "API Key / Token:",
-                type="password",
-                placeholder="gsk_... / hf_... / sk-...",
-                help="Pegá tu clave de Groq (gsk_...), Hugging Face (hf_...) u OpenAI (sk-...)."
-            )
-            
-            default_m = st.session_state.agent.model or "openai/gpt-oss-120b"
-            if "Groq" in provider_choice and "Qwen/Qwen" in default_m:
-                default_m = "openai/gpt-oss-120b"
-            elif "OpenAI" in provider_choice and "Qwen/Qwen" in default_m:
-                default_m = "gpt-4o-mini"
+    with st.expander("🤖 Conexión al Modelo LLM", expanded=True):
+        st.markdown(
+            "Configurá tu clave en **Streamlit Secrets** (`GROQ_API_KEY`, `HF_TOKEN` o `OPENAI_API_KEY`) o ingresala aquí:"
+        )
+        provider_choice = st.selectbox(
+            "Proveedor LLM:",
+            ["Automático (Secrets / .env)", "Groq (Gratuito y Ultrarrápido)", "Hugging Face Router", "OpenAI"],
+            index=0
+        )
+        
+        user_key = st.text_input(
+            "API Key / Token:",
+            type="password",
+            placeholder="gsk_... / hf_... / sk-...",
+            help="Pegá tu clave de Groq (gsk_...), Hugging Face (hf_...) u OpenAI (sk-...)."
+        )
+        
+        default_m = st.session_state.agent.model or "openai/gpt-oss-120b"
+        if "Groq" in provider_choice and "Qwen/Qwen" in default_m:
+            default_m = "openai/gpt-oss-120b"
+        elif "OpenAI" in provider_choice and "Qwen/Qwen" in default_m:
+            default_m = "gpt-4o-mini"
 
-            custom_model = st.text_input(
-                "Modelo:",
-                value=default_m,
-                help="Groq: openai/gpt-oss-120b, qwen/qwen3.8-27b | HuggingFace: Qwen/Qwen2.5-72B-Instruct | OpenAI: gpt-4o-mini"
+        custom_model = st.text_input(
+            "Modelo:",
+            value=default_m,
+            help="Groq: openai/gpt-oss-120b, qwen/qwen3.8-27b | HuggingFace: Qwen/Qwen2.5-72B-Instruct | OpenAI: gpt-4o-mini"
+        )
+        
+        if st.button("🔌 Conectar / Actualizar LLM", use_container_width=True, type="primary"):
+            st.session_state.agent.last_error = None
+            st.session_state.agent.client = st.session_state.agent._init_client(
+                custom_key=user_key if user_key else None,
+                custom_provider=provider_choice if provider_choice != "Automático (Secrets / .env)" else None,
+                custom_model=custom_model if custom_model else None
             )
-            
-            if st.button("🔌 Conectar / Actualizar LLM", use_container_width=True, type="primary"):
-                st.session_state.agent.last_error = None
-                st.session_state.agent.client = st.session_state.agent._init_client(
-                    custom_key=user_key if user_key else None,
-                    custom_provider=provider_choice if provider_choice != "Automático (Secrets / .env)" else None,
-                    custom_model=custom_model if custom_model else None
-                )
-                st.rerun()
-    else:
-        st.caption("🔒 *La configuración de API Keys del proveedor LLM está protegida y administrada por el Grupo 6.*")
+            st.rerun()
 
     # Estado de Conexión en Sidebar
     if getattr(st.session_state.agent, "last_error", None):
@@ -1244,29 +1029,24 @@ with col_right:
     query_to_run = preset_query or user_input
 
     if query_to_run:
-        max_allowed_q = current_user.get("max_queries_session", 30)
-        if st.session_state.user_queries_used >= max_allowed_q:
-            st.warning(f"⛔ Alcanzaste el límite máximo de consultas permitido para tu clave en esta sesión ({max_allowed_q} consultas).")
-        else:
-            st.session_state.user_queries_used += 1
-            admin_context = cached_admin_location(tuple(st.session_state.current_bbox)).get("texto_formateado", "Argentina")
-            final_query = f"{query_to_run} [BBox activo: {st.session_state.current_bbox}] [Ubicación Administrativa: {admin_context}]"
-            if st.session_state.classification_result:
-                final_query += f" [Última Clasificación: {json.dumps(st.session_state.classification_result)}]"
-            if st.session_state.get("drainage_result"):
-                final_query += f" [Último Análisis de Drenaje Hídrico: {json.dumps(st.session_state.drainage_result)}]"
+        admin_context = cached_admin_location(tuple(st.session_state.current_bbox)).get("texto_formateado", "Argentina")
+        final_query = f"{query_to_run} [BBox activo: {st.session_state.current_bbox}] [Ubicación Administrativa: {admin_context}]"
+        if st.session_state.classification_result:
+            final_query += f" [Última Clasificación: {json.dumps(st.session_state.classification_result)}]"
+        if st.session_state.get("drainage_result"):
+            final_query += f" [Último Análisis de Drenaje Hídrico: {json.dumps(st.session_state.drainage_result)}]"
 
-            st.session_state.chat_history.append({"role": "user", "content": query_to_run})
+        st.session_state.chat_history.append({"role": "user", "content": query_to_run})
 
-            with st.spinner("🤖 El asistente está razonando e integrando evidencia..."):
-                answer, trace = st.session_state.agent.run(final_query)
-                run_metrics = getattr(st.session_state.agent, "last_run_metrics", {})
+        with st.spinner("🤖 El asistente está razonando e integrando evidencia..."):
+            answer, trace = st.session_state.agent.run(final_query)
+            run_metrics = getattr(st.session_state.agent, "last_run_metrics", {})
 
-                st.session_state.chat_history.append({
-                    "role": "assistant",
-                    "content": answer,
-                    "trace": trace,
-                    "metrics": run_metrics
-                })
-                st.rerun()
+            st.session_state.chat_history.append({
+                "role": "assistant",
+                "content": answer,
+                "trace": trace,
+                "metrics": run_metrics
+            })
+            st.rerun()
 

@@ -31,23 +31,30 @@ from shapely.geometry import shape
 
 # Recarga defensiva ante hot-reload en caliente de Streamlit Cloud tras un git push
 import services.real_satellite_service as _rss_mod
+import services.drainage_service as _ds_mod
 import rag.vector_store as _rag_vs_mod
 import agent.core as _agent_core_mod
 if (
     not hasattr(_rss_mod, "discover_available_sources")
     or not hasattr(_rss_mod, "IO_LULC_CLASSES")
+    or not hasattr(_rss_mod, "fetch_landcover_reference_for_bbox")
+    or not hasattr(_ds_mod, "SLOPE_BINS")
     or not hasattr(_rag_vs_mod, "_normalize_text")
     or not hasattr(_agent_core_mod.GeoReActAgent, "_requires_rag_grounding")
+    or not hasattr(_agent_core_mod.GeoReActAgent, "_extract_tagged_json")
 ):
     for _mod_name in [
         "config",
         "services.real_satellite_service",
+        "services.drainage_service",
         "rag.vector_store",
         "tools.base",
         "tools.land_cover",
+        "tools.drainage",
         "tools.geo_catalog",
         "tools.rag_search",
         "tools",
+        "agent.security",
         "agent.prompts",
         "agent.core",
         "agent.harness",
@@ -802,8 +809,8 @@ with col_left:
             if col_cfg_btn.button("⚙️ Clasificar Coberturas", type="primary", use_container_width=True):
                 dialog_clasificacion()
 
-            if col_drain_btn.button("🌊 Red de Drenaje y Pendientes", use_container_width=True, help="Descarga Copernicus DEM 30m y calcula líneas de escurrimiento con dirección e intensidad por pendiente"):
-                with st.spinner("Descargando Copernicus DEM 30m y modelando red de drenaje superficial..."):
+            if col_drain_btn.button("🌊 Red de Drenaje y Pendientes", use_container_width=True, help="Descarga Copernicus DEM 30m, modela líneas de escurrimiento y ejecuta cruce espacial Cobertura × Pendiente"):
+                with st.spinner("Descargando Copernicus DEM 30m y ejecutando cruce espacial Cobertura × Pendiente..."):
                     try:
                         d_res = analyze_drainage_and_slope(
                             bbox=st.session_state.current_bbox,
@@ -912,9 +919,9 @@ with col_left:
         with tab_drain:
             d_res = st.session_state.drainage_result
             col_dh1, col_dh2 = st.columns([1.5, 1.0])
-            col_dh1.markdown("#### 🌊 Red de Drenaje y Pendientes (Copernicus DEM 30m)")
+            col_dh1.markdown("#### 🌊 Red de Drenaje, Pendientes y Cruce Espacial (DEM 30m)")
             if col_dh2.button("🔄 Recalcular Drenaje", use_container_width=True):
-                with st.spinner("Recalculando modelo de drenaje superficial..."):
+                with st.spinner("Recalculando modelo hidrológico y cruce espacial Cobertura × Pendiente..."):
                     try:
                         d_res = analyze_drainage_and_slope(
                             bbox=st.session_state.current_bbox,
@@ -926,27 +933,93 @@ with col_left:
                     except Exception as e:
                         st.error(f"Error: {e}")
 
+            agua_excl_ha = float(d_res.get("agua_enmascarada_ha", 0.0) or 0.0)
+            terr_ha_val = float(d_res.get("superficie_terrestre_ha", d_res["superficie_total_ha"]) or d_res["superficie_total_ha"])
+
             # Métricas Topográficas Principales
             dc1, dc2, dc3, dc4 = st.columns(4)
             dc1.metric("⛰️ Desnivel", f"{d_res['elevacion']['desnivel_m']} m", f"Cotas: {d_res['elevacion']['minima_msnm']} a {d_res['elevacion']['maxima_msnm']} m")
-            dc2.metric("📐 Pendiente Media", f"{d_res['pendientes']['media_pct']}%", f"Máx: {d_res['pendientes']['maxima_pct']}%")
+            dc2.metric(
+                "📐 Pendiente Media" + (" (Terr.)" if agua_excl_ha > 0 else ""),
+                f"{d_res['pendientes']['media_pct']}%",
+                f"Máx: {d_res['pendientes']['maxima_pct']}%"
+            )
             dc3.metric("🧭 Rumbo de Flujo", f"{d_res['direccion_flujo']['rumbo_cardinal']}", f"Acimut: {d_res['direccion_flujo']['acimut_grados']}°")
-            dc4.metric("📐 Superficie", f"{d_res['superficie_total_ha']:,.1f} ha", "Copernicus 30m")
+            dc4.metric(
+                "📐 Superficie Terrestre" if agua_excl_ha > 0 else "📐 Superficie",
+                f"{terr_ha_val:,.1f} ha",
+                f"Agua excl.: {agua_excl_ha:,.1f} ha" if agua_excl_ha > 0 else "Copernicus 30m"
+            )
 
-            # Diagnóstico Agrohidrológico y Recomendación
-            if d_res.get("analisis_agrohidrologico") and d_res["analisis_agrohidrologico"].get("riesgo_erosion_hidrica"):
+            # Diagnóstico Territorial Multi-Dominio (basado en cruce espacial Cobertura × Pendiente)
+            diag_t = d_res.get("diagnostico_territorial")
+            cruce = d_res.get("cruce_espacial", {})
+            if diag_t:
+                fuente_cob = cruce.get("fuente_cobertura", "Referencia satelital 10m")
+                st.markdown(
+                    f"""
+                    <div style="background-color: #f8fafc; border: 1px solid #cbd5e1; border-left: 4px solid #0f172a; padding: 8px 12px; border-radius: 6px; margin-top: 6px; margin-bottom: 8px; font-size: 0.87rem; color: #1e293b;">
+                        🧭 <b>Régimen Territorial Detectado:</b> <b>{diag_t.get('regimen_territorial')}</b><br>
+                        🛰️ <b>Fuente de Cobertura (Cruce 10m × 30m):</b> <span style="color: #334155;">{fuente_cob}</span>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+
+                for mod in diag_t.get("modulos_activos", []):
+                    border_col = mod.get("color", "#2563eb")
+                    st.markdown(
+                        f"""
+                        <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-left: 4px solid {border_col}; padding: 8px 12px; border-radius: 6px; margin-bottom: 8px; font-size: 0.86rem; color: #1e293b;">
+                            📌 <b>{mod.get('dominio')}</b> &nbsp;<span style="background-color: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 4px; padding: 1px 6px; font-size: 0.78rem; color: #334155;">{mod.get('nivel')}</span><br>
+                            <span style="color: #334155;">{mod.get('hallazgo')}</span><br>
+                            💡 <b>Recomendación:</b> {mod.get('recomendaciones')}
+                        </div>
+                        """,
+                        unsafe_allow_html=True
+                    )
+
+                if diag_t.get("nota_alcance_regulatorio"):
+                    st.caption(f"⚖️ **Alcance normativo:** {diag_t['nota_alcance_regulatorio']}")
+
+            elif d_res.get("analisis_agrohidrologico") and d_res["analisis_agrohidrologico"].get("riesgo_erosion_hidrica"):
                 agro = d_res["analisis_agrohidrologico"]
                 st.markdown(
                     f"""
                     <div style="background-color: #eff6ff; border: 1px solid #bfdbfe; border-left: 4px solid #2563eb; padding: 8px 12px; border-radius: 6px; margin-top: 6px; margin-bottom: 10px; font-size: 0.88rem; color: #1e3a8a;">
-                        🌊 <b>Evaluación de Riesgo de Erosión Hídrica:</b> <b>{agro.get('riesgo_erosion_hidrica')}</b><br>
+                        🌊 <b>Evaluación de Riesgo:</b> <b>{agro.get('riesgo_erosion_hidrica')}</b><br>
                         💡 <b>Recomendación de Manejo:</b> {agro.get('recomendacion_conservacion')}
                     </div>
                     """,
                     unsafe_allow_html=True
                 )
 
-            with st.expander("📋 Ver distribución cuantitativa por rangos de pendiente"):
+            # Visualización y Matriz Cuantitativa del Cruce Espacial Cobertura × Pendiente
+            d_cruce_path = d_res.get("mapa_cruce_generado")
+            if d_cruce_path and os.path.exists(d_cruce_path):
+                st.image(d_cruce_path, caption="Cruce Espacial: Zonificación Funcional Hidro-Territorial y Superficie por Cobertura × Pendiente", use_container_width=True)
+
+            if cruce.get("disponible") and cruce.get("matriz_cobertura_pendiente"):
+                with st.expander("📊 Ver matriz cuantitativa Cobertura × Pendiente (hectáreas)"):
+                    matriz = cruce["matriz_cobertura_pendiente"]
+                    table_cross = []
+                    for row in sorted(matriz.values(), key=lambda x: x["hectareas"], reverse=True):
+                        pr = row.get("por_rango_pendiente", {})
+                        is_water = row.get("macro_clase") == "agua"
+                        table_cross.append({
+                            "Cobertura": row["nombre"].split("(")[0].strip(),
+                            "Total (ha)": f"{row['hectareas']:,.1f}",
+                            "% Área": f"{row['porcentaje_area']}%",
+                            "Pend. Media": "—" if is_water else f"{row['pendiente_media_pct']}%",
+                            "< 3% (ha)": "—" if is_water else f"{row['ha_pendiente_baja_menor_3pct']:,.1f}",
+                            "3–8% (ha)": "—" if is_water else f"{pr.get('moderada_3_a_8pct', {}).get('hectareas', 0.0):,.1f}",
+                            "8–15% (ha)": "—" if is_water else f"{pr.get('fuerte_8_a_15pct', {}).get('hectareas', 0.0):,.1f}",
+                            "15–30% (ha)": "—" if is_water else f"{pr.get('muy_fuerte_15_a_30pct', {}).get('hectareas', 0.0):,.1f}",
+                            "> 30% (ha)": "—" if is_water else f"{pr.get('extrema_mayor_30pct', {}).get('hectareas', 0.0):,.1f}",
+                        })
+                    st.table(table_cross)
+
+            with st.expander("📋 Ver distribución cuantitativa por rangos de pendiente terrestre"):
                 dist = d_res["pendientes"]["distribucion"]
                 table_dist = []
                 for k, v in dist.items():
@@ -957,10 +1030,12 @@ with col_left:
                         "Porcentaje (%)": f"{v['porcentaje']}%"
                     })
                 st.table(table_dist)
+                if agua_excl_ha > 0:
+                    st.caption(f"💧 Cuerpos de agua enmascarados fuera del cálculo de pendiente terrestre: **{agua_excl_ha:,.1f} ha** ({cruce.get('agua_enmascarada_pct', 0.0)}%).")
 
             d_mapa_path = d_res.get("mapa_generado")
             if d_mapa_path and os.path.exists(d_mapa_path):
-                st.image(d_mapa_path, caption="Topografía 3D, Líneas de Drenaje Hídrico y Zonificación de Pendientes", use_container_width=True)
+                st.image(d_mapa_path, caption="Topografía 3D, Líneas de Drenaje Hídrico y Zonificación de Pendientes Terrestres", use_container_width=True)
 
     if not has_class_res and not has_drain_res:
         if has_selection and can_classify:
@@ -998,9 +1073,9 @@ with col_right:
     q_col1, q_col2, q_col3, q_col4 = st.columns([1.05, 1.25, 1.05, 1.25])
     preset_query = None
     if q_col1.button("📉 Coberturas", use_container_width=True):
-        preset_query = "Analizá y diagnosticá la distribución cuantitativa de coberturas obtenidas por el modelo en el área seleccionada, indicando superficies en hectáreas, porcentajes y su balance agroambiental."
+        preset_query = "Analizá y diagnosticá la distribución cuantitativa de coberturas obtenidas por el modelo en el área seleccionada, indicando superficies en hectáreas, porcentajes y su balance territorial (forestal, productivo, urbano e hídrico)."
     if q_col2.button("🌊 Drenaje y Pendiente", use_container_width=True):
-        preset_query = "Analizá y diagnosticá la red de drenaje hídrico superficial, pendientes (%) y dirección de escurrimiento en el área seleccionada, indicando el riesgo de erosión hídrica en sectores productivos."
+        preset_query = "Analizá y diagnosticá la red de drenaje hídrico superficial, pendientes (%) y dirección de escurrimiento en el área seleccionada, evaluando los riesgos hídricos y recomendaciones pertinentes según el cruce espacial Cobertura × Pendiente."
     if q_col3.button("🛠️ Stack y Código", use_container_width=True):
         preset_query = "Explicá el stack tecnológico utilizado para construir esta app, su arquitectura modular y cómo intervenir o modificar el código según la guía del proyecto."
     if q_col4.button("🛡️ Harness y Seguridad", use_container_width=True):
@@ -1048,9 +1123,40 @@ with col_right:
         admin_context = cached_admin_location(tuple(st.session_state.current_bbox)).get("texto_formateado", "Argentina")
         final_query = f"{query_to_run} [BBox activo: {st.session_state.current_bbox}] [Ubicación Administrativa: {admin_context}]"
         if st.session_state.classification_result:
-            final_query += f" [Última Clasificación: {json.dumps(st.session_state.classification_result)}]"
+            c_raw = st.session_state.classification_result
+            c_compact = {
+                k: c_raw.get(k)
+                for k in (
+                    "modelo", "coleccion_stac", "año_referencia", "fecha_analizada",
+                    "superficie_total_ha", "total_pixeles_10m", "coberturas", "ubicacion_administrativa"
+                )
+                if c_raw.get(k) is not None
+            }
+            final_query += f" [Última Clasificación: {json.dumps(c_compact, ensure_ascii=False)}]"
         if st.session_state.get("drainage_result"):
-            final_query += f" [Último Análisis de Drenaje Hídrico: {json.dumps(st.session_state.drainage_result)}]"
+            d_raw = st.session_state.drainage_result
+            cruce_raw = d_raw.get("cruce_espacial", {}) or {}
+            d_compact = {
+                "superficie_total_ha": d_raw.get("superficie_total_ha"),
+                "superficie_terrestre_ha": d_raw.get("superficie_terrestre_ha"),
+                "agua_enmascarada_ha": d_raw.get("agua_enmascarada_ha"),
+                "elevacion": d_raw.get("elevacion"),
+                "pendientes": {
+                    "media_pct": d_raw.get("pendientes", {}).get("media_pct"),
+                    "maxima_pct": d_raw.get("pendientes", {}).get("maxima_pct"),
+                    "mediana_pct": d_raw.get("pendientes", {}).get("mediana_pct"),
+                },
+                "direccion_flujo": d_raw.get("direccion_flujo"),
+                "cruce_espacial": {
+                    "disponible": cruce_raw.get("disponible"),
+                    "fuente_cobertura": cruce_raw.get("fuente_cobertura"),
+                    "esquema_semantico": cruce_raw.get("esquema_semantico"),
+                    "indicadores_cruce": cruce_raw.get("indicadores_cruce"),
+                },
+                "diagnostico_territorial": d_raw.get("diagnostico_territorial"),
+                "analisis_agrohidrologico": d_raw.get("analisis_agrohidrologico"),
+            }
+            final_query += f" [Último Análisis de Drenaje Hídrico: {json.dumps(d_compact, ensure_ascii=False)}]"
 
         st.session_state.chat_history.append({"role": "user", "content": query_to_run})
 

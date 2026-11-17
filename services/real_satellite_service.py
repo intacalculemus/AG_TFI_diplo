@@ -5,6 +5,7 @@ Soporta:
 2. Procesamiento de Bandas B04/B08 Sentinel-2 L2A en tiempo real
 """
 import os
+import hashlib
 from typing import List, Dict, Any, Optional, Tuple
 import numpy as np
 import matplotlib
@@ -18,7 +19,7 @@ import math
 import pystac_client
 import planetary_computer
 import rasterio
-from rasterio.windows import from_bounds, bounds as window_bounds_fn
+from rasterio.windows import from_bounds, bounds as window_bounds_fn, transform as window_transform_fn
 from rasterio.warp import transform_bounds
 from config import OUTPUTS_DIR
 from services.geo_admin_service import get_location_for_bbox
@@ -112,6 +113,73 @@ IO_LULC_CLASSES = {
     10: {"name": "Nubes (Clouds)", "color": "#c8c8c8", "rgb": [200, 200, 200]},
     11: {"name": "Pastizal / Monte / Arbustal (Rangeland)", "color": "#dace81", "rgb": [218, 206, 129]}
 }
+
+# Macro-clases semánticas unificadas para el cruce espacial Cobertura x Pendiente
+MACRO_CLASS_META: Dict[str, Dict[str, Any]] = {
+    "sin_datos": {"id": 0, "nombre": "Sin datos / Nubes", "color": "#cbd5e1"},
+    "bosque": {"id": 1, "nombre": "Bosque / Cobertura Arbórea", "color": "#15803d"},
+    "matorral": {"id": 2, "nombre": "Matorral / Arbustal", "color": "#d97706"},
+    "pastizal": {"id": 3, "nombre": "Pastizal / Sabana / Estepa", "color": "#ca8a04"},
+    "cultivo": {"id": 4, "nombre": "Cultivos Agrícolas", "color": "#c026d3"},
+    "urbano": {"id": 5, "nombre": "Área Urbana / Construida", "color": "#dc2626"},
+    "suelo_desnudo": {"id": 6, "nombre": "Suelo Desnudo / Roca / Barbecho", "color": "#78716c"},
+    "agua": {"id": 7, "nombre": "Cuerpos de Agua", "color": "#1d4ed8"},
+    "humedal": {"id": 8, "nombre": "Humedales / Veg. Inundable", "color": "#0891b2"},
+    "nieve_hielo": {"id": 9, "nombre": "Nieve y Hielo", "color": "#e2e8f0"},
+    "vegetacion_indiferenciada": {"id": 10, "nombre": "Vegetación Activa (NDVI)", "color": "#22c55e"},
+}
+
+MACRO_ID_TO_KEY: Dict[int, str] = {meta["id"]: key for key, meta in MACRO_CLASS_META.items()}
+
+SCHEMA_CODE_TO_MACRO_KEY: Dict[str, Dict[int, str]] = {
+    "esa-worldcover": {
+        0: "sin_datos",
+        10: "bosque",
+        20: "matorral",
+        30: "pastizal",
+        40: "cultivo",
+        50: "urbano",
+        60: "suelo_desnudo",
+        80: "agua",
+        90: "humedal",
+        95: "bosque",
+        100: "matorral",
+    },
+    "io-lulc-annual-v02": {
+        0: "sin_datos",
+        1: "agua",
+        2: "bosque",
+        4: "humedal",
+        5: "cultivo",
+        7: "urbano",
+        8: "suelo_desnudo",
+        9: "nieve_hielo",
+        10: "sin_datos",
+        11: "pastizal",
+    },
+    "sentinel2-ndvi": {
+        0: "suelo_desnudo",
+        1: "vegetacion_indiferenciada",
+        2: "agua",
+    },
+}
+
+
+def map_code_grid_to_macro_ids(grid: np.ndarray, schema: str) -> np.ndarray:
+    """Convierte una matriz de códigos nativos (WorldCover / IO-LULC / NDVI) a IDs de macro-clase."""
+    mapping = SCHEMA_CODE_TO_MACRO_KEY.get(schema, {})
+    lut = np.zeros(256, dtype=np.uint8)
+    for raw_code, macro_key in mapping.items():
+        if 0 <= int(raw_code) < 256:
+            lut[int(raw_code)] = MACRO_CLASS_META[macro_key]["id"]
+    clipped = np.clip(grid, 0, 255).astype(np.uint8)
+    return lut[clipped]
+
+
+def _bbox_cache_tag(bbox: List[float]) -> str:
+    """Genera un identificador corto determinístico para nombres de archivos temporales en outputs/."""
+    norm = ",".join(f"{float(v):.4f}" for v in bbox)
+    return hashlib.sha1(norm.encode("utf-8")).hexdigest()[:8]
 
 def get_stac_catalog():
     """Inicializa y firma el cliente STAC de Planetary Computer."""
@@ -302,12 +370,12 @@ def classify_with_esa_worldcover(
     if not items:
         raise ValueError(f"No se encontró cobertura del modelo IA ({chosen_collection}) para el BBox {target_bbox}.")
 
-    # Seleccionar el item del año solicitado o el primero disponible
-    selected_item = items[0]
-    for it in items:
-        if year_str in it.id or year_str in str(it.properties.get("start_datetime", "")):
-            selected_item = it
-            break
+    # Ordenar candidatos priorizando el año solicitado
+    matching_items = [
+        it for it in items
+        if year_str in it.id or year_str in str(it.properties.get("start_datetime", ""))
+    ]
+    candidate_items = matching_items + [it for it in items if it not in matching_items]
 
     is_io_lulc = (chosen_collection == "io-lulc-annual-v02")
     asset_key = "data" if is_io_lulc else "map"
@@ -319,53 +387,83 @@ def classify_with_esa_worldcover(
     )
     short_tag = "io_lulc" if is_io_lulc else "worldcover"
 
-    map_url = selected_item.assets[asset_key].href
-
     raster_env = rasterio.Env(
         GDAL_DISABLE_READDIR_ON_OPEN="EMPTY_DIR",
         CPL_VSIL_CURL_ALLOWED_EXTENSIONS=".tif",
         VSI_CACHE=True
     )
 
+    data = None
+    real_geo_bounds = None
+    folium_bounds = None
+    lc_crs_str = None
+    lc_transform_arr = None
+
     with raster_env:
-        with rasterio.open(map_url) as src:
-            native_bounds = transform_bounds("EPSG:4326", src.crs, *target_bbox)
-            raw_window = from_bounds(*native_bounds, transform=src.transform)
-            img_window = rasterio.windows.Window(0, 0, src.width, src.height)
-            valid_window = raw_window.intersection(img_window).round_lengths().round_offsets()
+        last_window_err = None
+        for cand_item in candidate_items:
+            map_url = cand_item.assets[asset_key].href
+            try:
+                with rasterio.open(map_url) as src:
+                    native_bounds = transform_bounds("EPSG:4326", src.crs, *target_bbox)
+                    raw_window = from_bounds(*native_bounds, transform=src.transform)
+                    img_window = rasterio.windows.Window(0, 0, src.width, src.height)
+                    valid_window = raw_window.intersection(img_window).round_lengths().round_offsets()
 
-            if valid_window.width <= 0 or valid_window.height <= 0:
-                raise ValueError(f"El recuadro seleccionado queda fuera de los límites del tile de {model_label}.")
+                    if valid_window.width <= 0 or valid_window.height <= 0:
+                        continue
 
-            requested_pixels = int(valid_window.width * valid_window.height)
-            if requested_pixels > MAX_ALLOWED_PIXELS:
-                raise ValueError(
-                    f"El área seleccionada contiene {requested_pixels:,} píxeles (~{requested_pixels * 0.01:,.1f} ha), "
-                    f"superando el límite máximo seguro de {MAX_ALLOWED_PIXELS:,} píxeles (~100.000 ha). "
-                    f"Por favor delimitá un área más pequeña."
-                )
+                    requested_pixels = int(valid_window.width * valid_window.height)
+                    if requested_pixels > MAX_ALLOWED_PIXELS:
+                        raise ValueError(
+                            f"El área seleccionada contiene {requested_pixels:,} píxeles (~{requested_pixels * 0.01:,.1f} ha), "
+                            f"superando el límite máximo seguro de {MAX_ALLOWED_PIXELS:,} píxeles (~100.000 ha). "
+                            f"Por favor delimitá un área más pequeña."
+                        )
 
-            # Leer la matriz clasificada
-            data = src.read(1, window=valid_window)
+                    data = src.read(1, window=valid_window)
+                    win_transform = window_transform_fn(valid_window, src.transform)
+                    lc_transform_arr = np.array(list(win_transform)[:6], dtype=np.float64)
+                    lc_crs_str = str(src.crs)
+                    src_is_geographic = bool(src.crs and src.crs.is_geographic)
 
-            # Calcular límites geográficos en EPSG:4326
-            w_native_bounds = window_bounds_fn(valid_window, src.transform)
-            real_geo_bounds = transform_bounds(src.crs, "EPSG:4326", *w_native_bounds)
-            
-            folium_bounds = [
-                [real_geo_bounds[1], real_geo_bounds[0]], # South, West
-                [real_geo_bounds[3], real_geo_bounds[2]]  # North, East
-            ]
+                    w_native_bounds = window_bounds_fn(valid_window, src.transform)
+                    real_geo_bounds = transform_bounds(src.crs, "EPSG:4326", *w_native_bounds)
+                    folium_bounds = [
+                        [real_geo_bounds[1], real_geo_bounds[0]], # South, West
+                        [real_geo_bounds[3], real_geo_bounds[2]]  # North, East
+                    ]
+                    break
+            except rasterio.errors.WindowError as we:
+                last_window_err = we
+                continue
 
-    # Estadísticas por clase
+        if data is None:
+            raise ValueError(
+                f"El recuadro seleccionado queda fuera de los límites del tile de {model_label}."
+                + (f" ({last_window_err})" if last_window_err else "")
+            )
+
+    # Estadísticas por clase (área métrica exacta por píxel según CRS nativo)
     unique_vals, counts = np.unique(data, return_counts=True)
     total_px = data.size
+    h, w = data.shape
+
+    if src_is_geographic:
+        r_min_lon, r_min_lat, r_max_lon, r_max_lat = real_geo_bounds
+        mid_lat_lc = (r_min_lat + r_max_lat) / 2.0
+        dy_m_lc = ((r_max_lat - r_min_lat) / max(1, h)) * 111320.0
+        dx_m_lc = ((r_max_lon - r_min_lon) / max(1, w)) * 111320.0 * math.cos(math.radians(mid_lat_lc))
+        ha_por_pixel = (dy_m_lc * dx_m_lc) / 10000.0
+    else:
+        ha_por_pixel = abs(float(lc_transform_arr[0]) * float(lc_transform_arr[4])) / 10000.0
+        if ha_por_pixel <= 0:
+            ha_por_pixel = 0.01
 
     coberturas_detalle = {}
     legend_patches = []
-    
+
     # Matriz RGBA para overlay en el mapa
-    h, w = data.shape
     rgba_grid = np.zeros((h, w, 4), dtype=np.uint8)
 
     for code_val, count_val in zip(unique_vals, counts):
@@ -374,7 +472,7 @@ def classify_with_esa_worldcover(
             continue
         info = classes_dict.get(code, {"name": f"Clase {code}", "color": "#7f7f7f", "rgb": [127, 127, 127]})
         pct = round((count_val / total_px) * 100, 2)
-        ha = round(count_val * 0.01, 1)  # 10m x 10m = 0.01 ha
+        ha = round(count_val * ha_por_pixel, 1)
 
         coberturas_detalle[str(code)] = {
             "codigo": code,
@@ -394,7 +492,7 @@ def classify_with_esa_worldcover(
             mpatches.Patch(color=info["color"], label=f"{info['name']} ({pct}% - {ha:,.1f} ha)")
         )
 
-    total_ha = round(total_px * 0.01, 1)
+    total_ha = round(total_px * ha_por_pixel, 1)
 
     # Generar visualización con Matplotlib
     fig, ax = plt.subplots(figsize=(9, 7))
@@ -421,6 +519,16 @@ def classify_with_esa_worldcover(
     img_overlay = Image.fromarray(rgba_grid, mode="RGBA")
     img_overlay.save(overlay_path)
 
+    # Guardar caché matricial georreferenciada (.npz) para cruce espacial exacto con DEM 30m
+    cache_tag = _bbox_cache_tag(target_bbox)
+    lc_cache_path = OUTPUTS_DIR / f"lc_grid_{short_tag}_{year_str}_{cache_tag}.npz"
+    np.savez_compressed(
+        lc_cache_path,
+        grid=data.astype(np.uint8),
+        transform=lc_transform_arr,
+        crs=np.array(lc_crs_str),
+    )
+
     # Construir resumen textual
     resumen_lines = [
         f"Clasificación realizada con el modelo de IA Deep Learning {model_label} ({year_str}):",
@@ -433,6 +541,8 @@ def classify_with_esa_worldcover(
         "status": "success",
         "modelo": model_label,
         "coleccion_stac": chosen_collection,
+        "raster_schema": chosen_collection,
+        "raster_cache_path": str(lc_cache_path),
         "año_referencia": year_str,
         "superficie_total_ha": total_ha,
         "total_pixeles_10m": total_px,
@@ -497,6 +607,9 @@ def fetch_and_classify_real_scene(
                 )
 
             red = src_red.read(1, window=valid_window).astype("float32")
+            win_transform = window_transform_fn(valid_window, src_red.transform)
+            lc_transform_arr = np.array(list(win_transform)[:6], dtype=np.float64)
+            lc_crs_str = str(src_red.crs)
 
             w_native_bounds = window_bounds_fn(valid_window, src_red.transform)
             real_geo_bounds = transform_bounds(src_red.crs, "EPSG:4326", *w_native_bounds)
@@ -578,6 +691,15 @@ def fetch_and_classify_real_scene(
     img_overlay = Image.fromarray(rgba_grid, mode="RGBA")
     img_overlay.save(overlay_path)
 
+    cache_tag = _bbox_cache_tag(target_bbox)
+    lc_cache_path = OUTPUTS_DIR / f"lc_grid_s2ndvi_{fecha_str.replace('-', '')}_{cache_tag}.npz"
+    np.savez_compressed(
+        lc_cache_path,
+        grid=grid.astype(np.uint8),
+        transform=lc_transform_arr,
+        crs=np.array(lc_crs_str),
+    )
+
     resumen_text = (
         f"Para la escena Sentinel-2 ({fecha_str}), sobre una superficie total de {total_ha:,.1f} ha ({total_px:,} px a 10m), se identificaron:\n"
         f"• Vegetación (NDVI ≥ {ndvi_threshold}): {veg_pct}% ({veg_ha:,.1f} ha)\n"
@@ -588,6 +710,8 @@ def fetch_and_classify_real_scene(
     return {
         "status": "success",
         "modelo": "Umbralización Radiométrica NDVI (Sentinel-2 L2A)",
+        "raster_schema": "sentinel2-ndvi",
+        "raster_cache_path": str(lc_cache_path),
         "escena_id": item_id,
         "satelite": "Sentinel-2 (L2A - Reflectancia de Superficie)",
         "fecha_analizada": fecha_str,
@@ -631,3 +755,17 @@ def fetch_and_classify_real_scene(
         "ubicacion_administrativa": get_location_for_bbox(target_bbox),
         "resumen_ejecutivo": resumen_text
     }
+
+
+def fetch_landcover_reference_for_bbox(bbox: List[float]) -> Optional[Dict[str, Any]]:
+    """
+    Obtiene automáticamente una clasificación estructural de referencia (ESA WorldCover 2021
+    o Esri 10m Annual LULC como respaldo) cuando el usuario o el agente solicita análisis
+    hidro-topográfico sin haber clasificado coberturas previamente.
+    """
+    for coll_id, yr in (("esa-worldcover", "2021"), ("io-lulc-annual-v02", "2023")):
+        try:
+            return classify_with_esa_worldcover(bbox=bbox, year=yr, collection_id=coll_id)
+        except Exception:
+            continue
+    return None

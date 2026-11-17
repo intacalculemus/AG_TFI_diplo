@@ -147,4 +147,21 @@ Contenido: Para cumplir con los estándares de Ingeniería de Soluciones Basadas
 - En Streamlit Community Cloud: La plataforma aprovisiona automáticamente un contenedor Linux aislado donde las capas de Python (Ciberseguridad, Harness y Sandbox) se ejecutan en vivo en cada petición sin necesidad de instalar servidores locales.
 - Especificación Docker (Dockerfile y docker-compose.yml): Garantiza reproducibilidad científica de las librerías C++ geoespaciales (GDAL, Rasterio, PROJ) y permite el despliegue soberano On-Premise en servidores institucionales de INTA o UNC con usuario no privilegiado (appuser) y límite de memoria RAM (2 GB).
 
+[DOC_ID: MARCO_TERRITORIAL_CUENCAS_BOSQUES_IUF]
+Título: Cruce Espacial Cobertura × Pendiente, Protección de Cuencas, Bosques Nativos e Interfaz Urbano-Forestal (IUF)
+Contenido: El análisis hidro-topográfico de la aplicación no debe interpretarse únicamente bajo una óptica agronómica, ya que la pendiente mide la energía potencial del escurrimiento pero el riesgo real y el manejo pertinente dependen de la cobertura del suelo y su posición en la cuenca:
+1. Metodología de Cruce Espacial (services/drainage_service.py):
+- Reproyecta el ráster de cobertura (ESA WorldCover 10m, Esri 10m Annual LULC o Sentinel-2 NDVI) sobre la grilla de Copernicus DEM 30m mediante vecino más cercano (Resampling.nearest).
+- Enmascara cuerpos de agua para evitar que lagos o embalses distorsionen la pendiente media terrestre y clasifica el relieve en 6 rangos (< 1%, 1-3%, 3-8%, 8-15%, 15-30% y > 30%).
+- Detecta el Régimen Territorial (Agropecuario, Cuenca Forestal de Montaña / Ladera, Bosque de Llanura, Urbano / Periurbano en Pie de Monte, Mixto o Estepa/Alta Montaña) y activa módulos de diagnóstico específicos por dominio.
+2. Bosques en Fuerte Pendiente y Ley N.° 26.331 (OTBN):
+- En sectores de bosques nativos sobre pendientes fuertes (≥ 8% y especialmente ≥ 15% o escarpes > 30%), la masa boscosa actúa como infraestructura verde protectora de cabecera de cuenca: intercepta precipitación, favorece la infiltración, fija el suelo mediante raíces y amortigua crecidas y sedimentación.
+- Nunca corresponden recomendaciones agrícolas (como siembra en contorno o terrazas de cultivo) sobre bosque nativo. En Argentina, la Ley Nacional N.° 26.331 de Presupuestos Mínimos de Protección Ambiental de los Bosques Nativos contempla entre sus Criterios de Sustentabilidad Ambiental la pendiente del terreno y el potencial de conservación de cuencas hídricas, criterios asociados a las Categorías I (Rojo - muy alto valor de conservación) y II (Amarillo) de los Ordenamientos Territoriales de Bosques Nativos (OTBN).
+3. Zonas Urbanas en Valle o Ladera e Interfaz Urbano-Forestal (IUF / Ley N.° 26.815):
+- En valles de montaña rodeados de laderas escarpadas (como ciudades andino-patagónicas o serranas), las áreas urbanas situadas aguas abajo reciben escorrentía torrencial convergente: el enfoque pertinente prioriza drenaje pluvial, infraestructura verde de retención, resguardo de conos aluviales y restricciones constructivas sobre pendientes > 15%.
+- Cuando la trama construida entra en contacto con laderas forestales o arbustivas (Interfaz Urbano-Forestal, IUF), cobra relevancia la prevención de incendios (Ley N.° 26.815 de Manejo del Fuego): el fuego asciende rápidamente en pendiente y la pérdida post-incendio de cobertura vegetal dispara escorrentía torrencial, hidrofobicidad del suelo y aluviones hacia la zona urbana.
+4. Alcance Regulatorio y Gobernanza (Tamizaje Preliminar):
+- Los diagnósticos generados a partir de coberturas satelitales globales (10m) y DEM 30m constituyen un apoyo técnico orientativo (screening). Para decisiones legales o catastrales vinculantes deben contrastarse con el OTBN provincial oficial, jurisdicción de Parques Nacionales y códigos de planeamiento urbano municipales.
+
+
 

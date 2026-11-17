@@ -13,7 +13,8 @@ from typing import Tuple, Optional, List, Dict, Any
 # Límite máximo de superficie en el Sandbox para procesamiento satelital en vivo (hectáreas)
 # Evita que una consulta maliciosa o alucinación descargue un continente entero y agote la RAM del contenedor
 SANDBOX_MAX_AREA_HA = 100000.0  # 100.000 ha (10.000.000 píxeles a 10m)
-SANDBOX_MAX_QUERY_CHARS = 12000
+SANDBOX_MAX_USER_CHARS = 4000
+SANDBOX_MAX_QUERY_CHARS = 32000
 
 # Patrones de ataques de Prompt Injection / Jailbreak / Exfiltración de Prompts o Secretos
 PROMPT_INJECTION_PATTERNS = [
@@ -70,6 +71,12 @@ def validate_user_input(query: str) -> Tuple[bool, str]:
     # Extraer únicamente la parte escrita por el usuario (antes de los corchetes de contexto de la app)
     user_text_only = query.split("[BBox activo:")[0].strip()
     user_text_lower = user_text_only.lower()
+
+    if len(user_text_only) > SANDBOX_MAX_USER_CHARS:
+        return (
+            False,
+            f"🛡️ **Bloqueo de Seguridad (Input Guardrail):** El texto ingresado excede el límite máximo permitido de caracteres ({SANDBOX_MAX_USER_CHARS})."
+        )
 
     # 1. Detectar intentos de inyección de delimitadores falsos del protocolo ReAct
     if "observation:" in user_text_lower or "action:" in user_text_lower:

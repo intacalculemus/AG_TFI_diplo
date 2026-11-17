@@ -20,7 +20,7 @@ default_registry.register(Tool(
 
 default_registry.register(Tool(
     name="red_drenaje_hidrico",
-    description="Calcula la red de líneas de drenaje hídrico superficial, pendientes (%), dirección de flujo (acimut) y riesgo de erosión hídrica a partir de Copernicus DEM 30m.",
+    description="Calcula la red de líneas de drenaje hídrico superficial, pendientes (%) en 6 rangos, dirección de flujo (acimut) y el cruce espacial píxel a píxel Cobertura x Pendiente (enmascarando agua) para emitir diagnóstico territorial por dominio (agropecuario, bosque/cuencas, urbano e interfaz urbano-forestal) a partir de Copernicus DEM 30m.",
     func=analyze_drainage_network,
     usage_example="Action: red_drenaje_hidrico | [-62.8, -30.7, -62.5, -30.5]"
 ))

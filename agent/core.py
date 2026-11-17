@@ -211,13 +211,26 @@ class GeoReActAgent:
 
     def _extract_json_from_text(self, text: str) -> Optional[Dict[str, Any]]:
         """Intenta extraer un objeto JSON embebido en una cadena de texto."""
-        match = re.search(r"(\{.*\})", text, re.DOTALL)
-        if match:
+        if not text:
+            return None
+        decoder = json.JSONDecoder()
+        idx = text.find("{")
+        while idx != -1:
             try:
-                return json.loads(match.group(1))
+                obj, _end = decoder.raw_decode(text[idx:])
+                if isinstance(obj, dict):
+                    return obj
             except Exception:
                 pass
+            idx = text.find("{", idx + 1)
         return None
+
+    def _extract_tagged_json(self, text: str, tag: str) -> Optional[Dict[str, Any]]:
+        """Extrae el objeto JSON inmediatamente posterior a una etiqueta de contexto (p. ej. '[Última Clasificación:')."""
+        if tag not in text:
+            return None
+        after = text.split(tag, 1)[1]
+        return self._extract_json_from_text(after)
 
     def _synthesize_real_data(self, data: Dict[str, Any], context_normativa: str = "") -> str:
         """Genera una síntesis técnica y agroambiental rigurosa utilizando exactamente los números de la clasificación real."""
@@ -238,24 +251,41 @@ class GeoReActAgent:
             ub_info = data.get("ubicacion_administrativa", {})
             loc_line = f"📍 **Ubicación Territorial:** {ub_info.get('texto_formateado')}\n" if isinstance(ub_info, dict) and ub_info.get("texto_formateado") else ""
 
+            # Interpretación cuantitativa territorial multi-clase
+            bosque_ha = sum(c["hectareas"] for c in coberturas.values() if "Bosque" in c.get("nombre", "") or "Tree" in c.get("nombre", ""))
+            matorral_ha = sum(c["hectareas"] for c in coberturas.values() if "Matorral" in c.get("nombre", "") or "Shrub" in c.get("nombre", ""))
+            cultivo_ha = sum(c["hectareas"] for c in coberturas.values() if "Cultivo" in c.get("nombre", "") or "Crop" in c.get("nombre", ""))
+            pasturas_ha = sum(c["hectareas"] for c in coberturas.values() if any(k in c.get("nombre", "") for k in ("Pastizal", "Grassland", "Rangeland")))
+            urbano_ha = sum(c["hectareas"] for c in coberturas.values() if "Urbana" in c.get("nombre", "") or "Built" in c.get("nombre", ""))
+            suelo_ha = sum(c["hectareas"] for c in coberturas.values() if "Desnudo" in c.get("nombre", "") or "Bare" in c.get("nombre", ""))
+            agua_ha = sum(c["hectareas"] for c in coberturas.values() if "Agua" in c.get("nombre", "") or "Humedal" in c.get("nombre", "") or "Water" in c.get("nombre", "") or "Flooded" in c.get("nombre", ""))
+
             lines = [
                 f"### 📊 Diagnóstico de Coberturas - {model_name} (Año {year})",
                 f"{loc_line}Para el área de interés delimitada (**{total_ha:,.1f} ha**, {total_px:,} píxeles clasificados a 10m de resolución), los resultados son:",
                 "",
                 "\n".join(desglose),
                 "",
-                "**Interpretación Agroambiental e Hídrica:**",
+                "**Interpretación Territorial e Hídrica:**",
             ]
 
-            # Interpretación cuantitativa de coberturas
-            bosque_ha = sum(c["hectareas"] for c in coberturas.values() if "Bosque" in c.get("nombre", "") or "Tree" in c.get("nombre", ""))
-            cultivo_ha = sum(c["hectareas"] for c in coberturas.values() if "Cultivo" in c.get("nombre", "") or "Crop" in c.get("nombre", ""))
-            pasturas_ha = sum(c["hectareas"] for c in coberturas.values() if any(k in c.get("nombre", "") for k in ("Pastizal", "Grassland", "Rangeland")))
-            agua_ha = sum(c["hectareas"] for c in coberturas.values() if "Agua" in c.get("nombre", "") or "Humedal" in c.get("nombre", ""))
-
-            lines.append(f"- **Masa Forestal / Leñosa:** Representa {round((bosque_ha/total_ha)*100, 1) if total_ha > 0 else 0}% ({bosque_ha:,.1f} ha), fundamental para la regulación del balance hídrico y la conservación del suelo.")
+            if bosque_ha > 0 or matorral_ha > 0:
+                lenoso_ha = bosque_ha + matorral_ha
+                lines.append(
+                    f"- **Cobertura Forestal y Leñosa:** Representa {round((lenoso_ha/total_ha)*100, 1) if total_ha > 0 else 0}% "
+                    f"({bosque_ha:,.1f} ha de bosque/árboles"
+                    + (f" + {matorral_ha:,.1f} ha de matorral/arbustal" if matorral_ha > 0 else "")
+                    + "), clave para protección de cuencas, infiltración y regulación del escurrimiento."
+                )
+            if urbano_ha > 0:
+                lines.append(
+                    f"- **Área Urbana / Construida:** Ocupa {round((urbano_ha/total_ha)*100, 1) if total_ha > 0 else 0}% ({urbano_ha:,.1f} ha), "
+                    "lo que introduce impermeabilización superficial y requiere analizar drenaje pluvial y contacto en interfaz urbano-forestal."
+                )
             if cultivo_ha > 0 or pasturas_ha > 0:
-                lines.append(f"- **Área Productiva / Antrópica:** Ocupa {cultivo_ha:,.1f} ha de cultivos y {pasturas_ha:,.1f} ha de pastizales/sabanas.")
+                lines.append(f"- **Área Agrícola / Ganadera:** Registra {cultivo_ha:,.1f} ha de cultivos agrícolas y {pasturas_ha:,.1f} ha de pastizales/sabanas.")
+            if suelo_ha > 0:
+                lines.append(f"- **Suelo Desnudo / Roca / Barbecho:** {suelo_ha:,.1f} ha expuestas (sujetas a evaluación según pendiente).")
             if agua_ha > 0:
                 lines.append(f"- **Cuerpos de Agua y Humedales:** {agua_ha:,.1f} ha identificadas en la matriz territorial.")
 
@@ -306,22 +336,47 @@ class GeoReActAgent:
                 f"**Diagnóstico:** {diag.get('interpretacion')}"
             )
 
-        # 4. Caso Red de Drenaje Hídrico y Pendientes (Copernicus DEM 30m)
+        # 4. Caso Red de Drenaje Hídrico, Pendientes y Cruce Espacial Cobertura x Pendiente (Copernicus DEM 30m)
         if "pendientes" in data and "elevacion" in data:
             elev = data.get("elevacion", {})
             pend = data.get("pendientes", {})
             flujo = data.get("direccion_flujo", {})
+            cruce = data.get("cruce_espacial", {})
+            diag = data.get("diagnostico_territorial", {})
             agro = data.get("analisis_agrohidrologico", {})
             total_ha = data.get("superficie_total_ha", 0.0)
-            return (
-                f"### 🌊 Diagnóstico Hidro-Topográfico - Copernicus DEM 30m\n"
-                f"Sobre una superficie analizada de **{total_ha:,.1f} ha**:\n\n"
-                f"• **Cotas y Desnivel:** {elev.get('minima_msnm')} a {elev.get('maxima_msnm')} msnm (Desnivel: **{elev.get('desnivel_m')} m**)\n"
-                f"• **Pendiente Media / Máxima:** **{pend.get('media_pct')}%** (Máx: {pend.get('maxima_pct')}%)\n"
-                f"• **Dirección Predominante de Escurrimiento:** **{flujo.get('rumbo_cardinal')}** (Acimut: {flujo.get('acimut_grados')}°)\n"
-                f"• **Riesgo de Erosión Hídrica:** **{agro.get('riesgo_erosion_hidrica', 'Moderado')}**\n\n"
-                f"**Recomendación de Manejo:** {agro.get('recomendacion_conservacion', 'Monitorear escurrimiento superficial.')}"
-            )
+            terr_ha = data.get("superficie_terrestre_ha", total_ha)
+            agua_excl = data.get("agua_enmascarada_ha", 0.0)
+
+            lines = [
+                "### 🌊 Diagnóstico Hidro-Territorial y Cruce Espacial — Copernicus DEM 30m",
+                f"Superficie total analizada: **{total_ha:,.1f} ha**"
+                + (f" (Terrestre: **{terr_ha:,.1f} ha** | Agua enmascarada: **{agua_excl:,.1f} ha**)" if agua_excl > 0 else "") + ":",
+                "",
+                f"• **Cotas y Desnivel:** {elev.get('minima_msnm')} a {elev.get('maxima_msnm')} msnm (Desnivel: **{elev.get('desnivel_m')} m**)",
+                f"• **Pendiente Terrestre Media / Máxima:** **{pend.get('media_pct')}%** (Máx: {pend.get('maxima_pct')}%)",
+                f"• **Dirección Predominante de Escurrimiento:** **{flujo.get('rumbo_cardinal')}** (Acimut: {flujo.get('acimut_grados')}°)",
+            ]
+
+            if diag:
+                lines.append(f"• **Régimen Territorial Detectado:** **{diag.get('regimen_territorial')}**")
+                if cruce.get("disponible"):
+                    lines.append(f"• **Fuente de Cobertura (Cruce 10m×30m):** {cruce.get('fuente_cobertura')}")
+                lines.append(f"• **{diag.get('etiqueta_riesgo_principal', 'Riesgo Principal')}:** {diag.get('nivel_riesgo_principal')}")
+
+                modulos = diag.get("modulos_activos", [])
+                if modulos:
+                    lines.append("\n**Módulos de Diagnóstico y Recomendaciones por Uso Real del Suelo:**")
+                    for m in modulos:
+                        lines.append(f"- **{m.get('dominio')} [{m.get('nivel')}]:** {m.get('hallazgo')} *Recomendación:* {m.get('recomendaciones')}")
+
+                if diag.get("nota_alcance_regulatorio"):
+                    lines.append(f"\n> ℹ️ *{diag.get('nota_alcance_regulatorio')}*")
+            else:
+                lines.append(f"• **Evaluación de Riesgo:** **{agro.get('riesgo_erosion_hidrica', 'Moderado')}**")
+                lines.append(f"\n**Recomendación de Manejo:** {agro.get('recomendacion_conservacion', 'Monitorear escurrimiento superficial.')}")
+
+            return "\n".join(lines)
 
         return str(data.get("resumen_ejecutivo", "Datos procesados correctamente."))
 
@@ -353,11 +408,18 @@ class GeoReActAgent:
         
         # Separar el texto principal de la consulta de los metadatos JSON adjuntos
         main_query_text = user_raw.split("[BBox activo:")[0].strip().lower()
-        query_json = self._extract_json_from_text(user_raw)
+        class_json = self._extract_tagged_json(user_raw, "[Última Clasificación:")
+        drain_json = self._extract_tagged_json(user_raw, "[Último Análisis de Drenaje Hídrico:")
+        query_json = class_json or drain_json or self._extract_json_from_text(user_raw)
 
-        # Extraer BBox explícito si el usuario lo incluyó en su pregunta (ej. [-62.2, -26.15, -61.9, -25.85])
+        # Extraer BBox explícito en el texto o el BBox activo inyectado por la app
         explicit_bbox_match = re.search(r"(\[\s*-?\d+\.?\d*\s*,\s*-?\d+\.?\d*\s*,\s*-?\d+\.?\d*\s*,\s*-?\d+\.?\d*\s*\])", main_query_text)
-        explicit_bbox = explicit_bbox_match.group(1) if explicit_bbox_match else "[-62.2, -26.15, -61.9, -25.85]"
+        active_bbox_match = re.search(r"\[BBox activo:\s*(\[[^\]]+\])\]", user_raw)
+        explicit_bbox = (
+            explicit_bbox_match.group(1)
+            if explicit_bbox_match
+            else (active_bbox_match.group(1) if active_bbox_match else "[-62.2, -26.15, -61.9, -25.85]")
+        )
 
         last_msg = messages[-1]["content"]
 
@@ -383,23 +445,36 @@ class GeoReActAgent:
                     "Action: rag_documental_inta | harness ciberseguridad sandbox contenedores owasp"
                 )
 
-            # 1. Si el usuario solicita diagnóstico de drenaje / pendientes
-            if any(k in main_query_text for k in ["drenaje", "pendiente", "escurrimiento", "erosion", "erosión", "topografia", "topografía", "dem"]):
-                if "[Último Análisis de Drenaje Hídrico:" in user_raw:
-                    drain_part = user_raw.split("[Último Análisis de Drenaje Hídrico:")[1]
-                    drain_json = self._extract_json_from_text(drain_part)
-                    if drain_json:
-                        sintesis = self._synthesize_real_data(drain_json)
-                        return f"Thought: Cuento con las métricas topográficas e hidrológicas calculadas sobre el área activa.\nFINAL: {sintesis}"
+            # 0c. Si el usuario consulta sobre Ley 26.331, OTBN, interfaz urbano-forestal o marco normativo de cuencas
+            if any(k in main_query_text for k in ["26.331", "26331", "26.815", "26815", "otbn", "ley de bosques", "interfaz urbano-forestal", "iuf", "preservacion del bosque", "preservación del bosque"]) and "[Último Análisis de Drenaje Hídrico:" not in user_raw:
                 return (
-                    "Thought: El usuario solicita modelar la red de drenaje hídrico superficial y pendientes a partir de Copernicus DEM 30m.\n"
+                    "Thought: El usuario consulta sobre el marco normativo de bosques nativos (Ley 26.331 / OTBN), protección de cuencas e interfaz urbano-forestal. Consultaré la base documental RAG.\n"
+                    "Action: rag_documental_inta | marco territorial cuencas bosques nativos ley 26331 otbn interfaz urbano forestal"
+                )
+
+            # 1. Si el usuario solicita diagnóstico de drenaje / pendientes / cruce espacial / riesgo hídrico
+            is_drain_query = any(
+                k in main_query_text
+                for k in ["drenaje", "pendiente", "escurrimiento", "erosion", "erosión", "topografia", "topografía", "dem", "cruce espacial", "cuenca", "aluvional", "interfaz"]
+            )
+            is_cov_only_query = any(k in main_query_text for k in ["cobertura", "coberturas", "proporcion", "proporción", "balance"]) and not is_drain_query
+            if is_drain_query or (
+                drain_json is not None
+                and not is_cov_only_query
+                and any(k in main_query_text for k in ["riesgo", "manejo", "recomendacion", "recomendación"])
+            ):
+                if drain_json:
+                    sintesis = self._synthesize_real_data(drain_json)
+                    return f"Thought: Cuento con las métricas topográficas, hidrológicas y de cruce espacial calculadas sobre el área activa.\nFINAL: {sintesis}"
+                return (
+                    "Thought: El usuario solicita modelar la red de drenaje hídrico superficial, pendientes y cruce espacial Cobertura × Pendiente a partir de Copernicus DEM 30m.\n"
                     f"Action: red_drenaje_hidrico | {explicit_bbox}"
                 )
 
             # 2. Si el usuario solicita diagnóstico de coberturas y ya hay datos clasificados adjuntos
-            if any(k in main_query_text for k in ["cobertura", "diagnostico", "diagnóstico", "proporcion", "proporción", "balance", "bosque", "cultivo"]):
-                if query_json and ("coberturas" in query_json or "modelo" in query_json) and not explicit_bbox_match:
-                    sintesis = self._synthesize_real_data(query_json)
+            if any(k in main_query_text for k in ["cobertura", "diagnostico", "diagnóstico", "proporcion", "proporción", "balance", "bosque", "cultivo", "urbano"]):
+                if class_json and ("coberturas" in class_json or "modelo" in class_json) and not explicit_bbox_match:
+                    sintesis = self._synthesize_real_data(class_json)
                     return f"Thought: Cuento con los datos exactos obtenidos de la clasificación del modelo.\nFINAL: {sintesis}"
 
             # 3. Si el usuario pregunta por las fuentes de imágenes o diferencias entre IA y Umbralización

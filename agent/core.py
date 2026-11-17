@@ -378,6 +378,52 @@ class GeoReActAgent:
 
             return "\n".join(lines)
 
+        # 5. Caso Ordenamiento Territorial de Bosques Nativos (OTBN - Ley N.° 26.331) y Cruce Cobertura x OTBN
+        if "distribucion_otbn" in data and "diagnostico_otbn" in data:
+            dist = data.get("distribucion_otbn", {})
+            meta = data.get("metadatos_legales", {})
+            cruce_o = data.get("cruce_cobertura_otbn", {})
+            diag_o = data.get("diagnostico_otbn", {})
+            total_ha = data.get("superficie_total_ha", 0.0)
+            provs = ", ".join(meta.get("provincias") or []) or "Argentina"
+            fechas = ", ".join(meta.get("fechas_norma") or []) or "N/D"
+            autors = ", ".join(meta.get("autoridades") or []) or "Autoridad Provincial de Bosques"
+
+            lines = [
+                f"### 🌳 Diagnóstico OTBN (Ley N.° 26.331) y Cruce Espacial — {provs}",
+                f"Superficie total analizada: **{total_ha:,.1f} ha** | Fecha norma (`dct`): `{fechas}` | Autoridad: *{autors}*",
+                "",
+                f"• **Categoría I (Rojo — Alto valor):** {dist.get('I', {}).get('porcentaje', 0)}% ({dist.get('I', {}).get('hectareas', 0):,.1f} ha)",
+                f"• **Categoría II (Amarillo — Mediano valor):** {dist.get('II', {}).get('porcentaje', 0)}% ({dist.get('II', {}).get('hectareas', 0):,.1f} ha)",
+                f"• **Categoría III (Verde — Bajo valor):** {dist.get('III', {}).get('porcentaje', 0)}% ({dist.get('III', {}).get('hectareas', 0):,.1f} ha)",
+                f"• **Sin categoría OTBN:** {dist.get('Sin OTBN', {}).get('porcentaje', 0)}% ({dist.get('Sin OTBN', {}).get('hectareas', 0):,.1f} ha)",
+            ]
+
+            if cruce_o.get("disponible"):
+                ind = cruce_o.get("indicadores_cruce", {})
+                lines.extend([
+                    "",
+                    f"**Cruce Cobertura × OTBN ({cruce_o.get('fuente_cobertura')}):**",
+                    f"- **Bosque / Arbóreo:** {ind.get('bosque_en_rojo_I_ha', 0):,.1f} ha en Rojo (I) | "
+                    f"{ind.get('bosque_en_amarillo_II_ha', 0):,.1f} ha en Amarillo (II) | "
+                    f"{ind.get('bosque_en_verde_III_ha', 0):,.1f} ha en Verde (III) | "
+                    f"{ind.get('bosque_sin_otbn_ha', 0):,.1f} ha fuera de OTBN",
+                    f"- **Cultivos / Suelo Desnudo en áreas de conservación:** "
+                    f"{ind.get('cultivo_en_rojo_I_ha', 0):,.1f} ha cultivos + {ind.get('suelo_desnudo_en_rojo_I_ha', 0):,.1f} ha suelo desnudo en Rojo (I); "
+                    f"{ind.get('cultivo_en_amarillo_II_ha', 0):,.1f} ha cultivos + {ind.get('suelo_desnudo_en_amarillo_II_ha', 0):,.1f} ha suelo desnudo en Amarillo (II).",
+                ])
+
+            modulos = diag_o.get("modulos_activos", [])
+            if modulos:
+                lines.append("\n**Módulos de Diagnóstico Normativo-Territorial:**")
+                for m in modulos:
+                    lines.append(f"- **{m.get('dominio')} [{m.get('nivel')}]:** {m.get('hallazgo')} *Recomendación:* {m.get('recomendaciones')}")
+
+            if diag_o.get("nota_alcance_regulatorio"):
+                lines.append(f"\n> ℹ️ *{diag_o.get('nota_alcance_regulatorio')}*")
+
+            return "\n".join(lines)
+
         return str(data.get("resumen_ejecutivo", "Datos procesados correctamente."))
 
     @staticmethod
@@ -410,7 +456,8 @@ class GeoReActAgent:
         main_query_text = user_raw.split("[BBox activo:")[0].strip().lower()
         class_json = self._extract_tagged_json(user_raw, "[Última Clasificación:")
         drain_json = self._extract_tagged_json(user_raw, "[Último Análisis de Drenaje Hídrico:")
-        query_json = class_json or drain_json or self._extract_json_from_text(user_raw)
+        otbn_json = self._extract_tagged_json(user_raw, "[Último Análisis OTBN:")
+        query_json = class_json or drain_json or otbn_json or self._extract_json_from_text(user_raw)
 
         # Extraer BBox explícito en el texto o el BBox activo inyectado por la app
         explicit_bbox_match = re.search(r"(\[\s*-?\d+\.?\d*\s*,\s*-?\d+\.?\d*\s*,\s*-?\d+\.?\d*\s*,\s*-?\d+\.?\d*\s*\])", main_query_text)
@@ -445,8 +492,27 @@ class GeoReActAgent:
                     "Action: rag_documental_inta | harness ciberseguridad sandbox contenedores owasp"
                 )
 
-            # 0c. Si el usuario consulta sobre Ley 26.331, OTBN, interfaz urbano-forestal o marco normativo de cuencas
-            if any(k in main_query_text for k in ["26.331", "26331", "26.815", "26815", "otbn", "ley de bosques", "interfaz urbano-forestal", "iuf", "preservacion del bosque", "preservación del bosque"]) and "[Último Análisis de Drenaje Hídrico:" not in user_raw:
+            # 0c. Si el usuario consulta sobre OTBN, Ley 26.331 o interfaz urbano-forestal
+            is_otbn_query = any(k in main_query_text for k in [
+                "otbn", "26.331", "26331", "ley de bosques", "categoria i", "categoría i",
+                "categoria ii", "categoría ii", "categoria iii", "categoría iii",
+                "rojo", "amarillo", "verde", "zonificacion", "zonificación"
+            ])
+            is_iuf_only = any(k in main_query_text for k in ["26.815", "26815", "interfaz urbano-forestal", "iuf"])
+            if is_otbn_query and not is_iuf_only:
+                if otbn_json and not explicit_bbox_match:
+                    sintesis = self._synthesize_real_data(otbn_json)
+                    return f"Thought: Cuento con las métricas reales del OTBN (Ley 26.331) y su cruce espacial con la cobertura del área activa.\nFINAL: {sintesis}"
+                if explicit_bbox_match or (
+                    active_bbox_match
+                    and any(k in main_query_text for k in ["otbn", "cruce", "area", "área", "zona", "recuadro", "categor", "rojo", "amarillo", "verde", "hect"])
+                ):
+                    return (
+                        "Thought: El usuario solicita analizar la zonificación oficial del Ordenamiento Territorial de Bosques Nativos (OTBN - Ley 26.331) y su cruce con las coberturas del área.\n"
+                        f"Action: consultar_otbn_bosques | {explicit_bbox}"
+                    )
+
+            if any(k in main_query_text for k in ["26.331", "26331", "26.815", "26815", "otbn", "ley de bosques", "interfaz urbano-forestal", "iuf", "preservacion del bosque", "preservación del bosque"]) and "[Último Análisis de Drenaje Hídrico:" not in user_raw and otbn_json is None:
                 return (
                     "Thought: El usuario consulta sobre el marco normativo de bosques nativos (Ley 26.331 / OTBN), protección de cuencas e interfaz urbano-forestal. Consultaré la base documental RAG.\n"
                     "Action: rag_documental_inta | marco territorial cuencas bosques nativos ley 26331 otbn interfaz urbano forestal"
@@ -541,7 +607,7 @@ class GeoReActAgent:
                 if m["role"] == "user" and m["content"].startswith("Observation:"):
                     content = m["content"]
                     parsed = self._extract_json_from_text(content)
-                    if parsed and any(k in parsed for k in ["coberturas", "modelo", "estadisticas_ndvi", "pendientes"]):
+                    if parsed and any(k in parsed for k in ["coberturas", "modelo", "estadisticas_ndvi", "pendientes", "distribucion_otbn"]):
                         prev_classification_data = parsed
 
             # Si la consulta del usuario traía una clasificación activa previa

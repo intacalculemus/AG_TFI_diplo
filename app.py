@@ -32,6 +32,7 @@ from shapely.geometry import shape
 # Recarga defensiva ante hot-reload en caliente de Streamlit Cloud tras un git push
 import services.real_satellite_service as _rss_mod
 import services.drainage_service as _ds_mod
+import services.otbn_service as _otbn_mod
 import rag.vector_store as _rag_vs_mod
 import agent.core as _agent_core_mod
 if (
@@ -39,6 +40,7 @@ if (
     or not hasattr(_rss_mod, "IO_LULC_CLASSES")
     or not hasattr(_rss_mod, "fetch_landcover_reference_for_bbox")
     or not hasattr(_ds_mod, "SLOPE_BINS")
+    or not hasattr(_otbn_mod, "analyze_otbn_for_bbox")
     or not hasattr(_rag_vs_mod, "_normalize_text")
     or not hasattr(_agent_core_mod.GeoReActAgent, "_requires_rag_grounding")
     or not hasattr(_agent_core_mod.GeoReActAgent, "_extract_tagged_json")
@@ -47,10 +49,12 @@ if (
         "config",
         "services.real_satellite_service",
         "services.drainage_service",
+        "services.otbn_service",
         "rag.vector_store",
         "tools.base",
         "tools.land_cover",
         "tools.drainage",
+        "tools.otbn",
         "tools.geo_catalog",
         "tools.rag_search",
         "tools",
@@ -77,6 +81,7 @@ from services.real_satellite_service import (
     IO_LULC_CLASSES
 )
 from services.drainage_service import analyze_drainage_and_slope
+from services.otbn_service import analyze_otbn_for_bbox
 from services.geo_admin_service import (
     get_location_for_bbox, 
     get_administrative_location,
@@ -365,7 +370,11 @@ last_update_str = datetime.datetime.fromtimestamp(app_mtime).strftime("%d/%m/%Y 
 MAR_CHIQUITA_CENTER = [-30.60, -62.65]
 MAR_CHIQUITA_ZOOM = 9
 
-if "agent" not in st.session_state or not hasattr(st.session_state.agent, "_requires_rag_grounding"):
+if (
+    "agent" not in st.session_state
+    or not hasattr(st.session_state.agent, "_requires_rag_grounding")
+    or st.session_state.agent.registry.get("consultar_otbn_bosques") is None
+):
     st.session_state.agent = GeoReActAgent(registry=default_registry)
 elif getattr(st.session_state.agent, "last_error", None) or "Qwen/Qwen" in str(getattr(st.session_state.agent, "model", "")) or "llama-3.3" in str(getattr(st.session_state.agent, "model", "")):
     # Re-inicializar si se actualizó el archivo .env a Groq
@@ -377,6 +386,8 @@ if "classification_result" not in st.session_state:
     st.session_state.classification_result = None
 if "drainage_result" not in st.session_state:
     st.session_state.drainage_result = None
+if "otbn_result" not in st.session_state:
+    st.session_state.otbn_result = None
 if "current_bbox" not in st.session_state:
     st.session_state.current_bbox = DEFAULT_BBOX
 if "map_center" not in st.session_state:
@@ -566,6 +577,8 @@ with col_left:
             target_b = st.session_state.classification_result["folium_bounds"]
         elif st.session_state.drainage_result and st.session_state.drainage_result.get("folium_bounds"):
             target_b = st.session_state.drainage_result["folium_bounds"]
+        elif st.session_state.get("otbn_result") and st.session_state.otbn_result.get("folium_bounds"):
+            target_b = st.session_state.otbn_result["folium_bounds"]
         elif st.session_state.current_bbox:
             bbox = st.session_state.current_bbox
             target_b = [[bbox[1], bbox[0]], [bbox[3], bbox[2]]]
@@ -579,11 +592,12 @@ with col_left:
         st.rerun()
 
     if btn_clear_map:
-        # Borra el rectángulo, el ráster clasificado y las líneas de drenaje
+        # Borra el rectángulo, el ráster clasificado, las líneas de drenaje y el OTBN
         st.session_state.map_version += 1
         st.session_state.drawn_geometry = None
         st.session_state.classification_result = None
         st.session_state.drainage_result = None
+        st.session_state.otbn_result = None
         st.session_state.fit_bounds_target = None
         st.rerun()
 
@@ -596,6 +610,7 @@ with col_left:
         st.session_state.fit_bounds_target = None
         st.session_state.classification_result = None
         st.session_state.drainage_result = None
+        st.session_state.otbn_result = None
         st.session_state.last_searched_location = None
         st.rerun()
 
@@ -684,6 +699,22 @@ with col_left:
                 zindex=10
             ).add_to(m)
 
+    # Si hay análisis de zonificación OTBN (Ley 26.331), superponerlo en el mapa
+    if st.session_state.get("otbn_result"):
+        res_otbn = st.session_state.otbn_result
+        o_overlay_path = res_otbn.get("overlay_generado")
+        o_bounds = res_otbn.get("folium_bounds")
+        if o_overlay_path and os.path.exists(o_overlay_path) and o_bounds:
+            ImageOverlay(
+                name="🌳 OTBN Nacional (Ley N.° 26.331)",
+                image=o_overlay_path,
+                bounds=o_bounds,
+                opacity=0.68,
+                interactive=True,
+                cross_origin=False,
+                zindex=15
+            ).add_to(m)
+
     # Si hay análisis de red de drenaje con overlay generado, superponerlo en el mapa
     if st.session_state.get("drainage_result"):
         res_drain = st.session_state.drainage_result
@@ -735,10 +766,16 @@ with col_left:
         last_drawing = map_output.get("last_active_drawing")
 
         # CASO A: El usuario hizo clic en la papelera y eliminó los dibujos en el mapa
-        if all_drawings is not None and len(all_drawings) == 0 and (st.session_state.drawn_geometry is not None or st.session_state.classification_result is not None or st.session_state.drainage_result is not None):
+        if all_drawings is not None and len(all_drawings) == 0 and (
+            st.session_state.drawn_geometry is not None
+            or st.session_state.classification_result is not None
+            or st.session_state.drainage_result is not None
+            or st.session_state.get("otbn_result") is not None
+        ):
             st.session_state.drawn_geometry = None
             st.session_state.classification_result = None
             st.session_state.drainage_result = None
+            st.session_state.otbn_result = None
             st.session_state.fit_bounds_target = None
             st.session_state.map_version += 1
             st.rerun()
@@ -763,6 +800,7 @@ with col_left:
                     # Limpiar clasificación previa y encuadre forzado para que el visor no salte a la posición anterior
                     st.session_state.classification_result = None
                     st.session_state.drainage_result = None
+                    st.session_state.otbn_result = None
                     st.session_state.fit_bounds_target = None
             except Exception as e:
                 st.warning(f"Error procesando geometría: {e}")
@@ -805,11 +843,11 @@ with col_left:
         can_classify = not dim_info["bloqueado"]
 
         if can_classify:
-            col_cfg_btn, col_drain_btn = st.columns([1.1, 1.3])
+            col_cfg_btn, col_drain_btn, col_otbn_btn = st.columns([1.0, 1.15, 1.0])
             if col_cfg_btn.button("⚙️ Clasificar Coberturas", type="primary", use_container_width=True):
                 dialog_clasificacion()
 
-            if col_drain_btn.button("🌊 Red de Drenaje y Pendientes", use_container_width=True, help="Descarga Copernicus DEM 30m, modela líneas de escurrimiento y ejecuta cruce espacial Cobertura × Pendiente"):
+            if col_drain_btn.button("🌊 Drenaje y Pendientes", use_container_width=True, help="Descarga Copernicus DEM 30m, modela líneas de escurrimiento y ejecuta cruce espacial Cobertura × Pendiente"):
                 with st.spinner("Descargando Copernicus DEM 30m y ejecutando cruce espacial Cobertura × Pendiente..."):
                     try:
                         d_res = analyze_drainage_and_slope(
@@ -823,6 +861,21 @@ with col_left:
                         st.rerun()
                     except Exception as e:
                         st.error(f"Error al calcular drenaje hídrico: {e}")
+
+            if col_otbn_btn.button("🌳 OTBN (Ley 26.331)", use_container_width=True, help="Consulta la zonificación oficial OTBN (Rojo I, Amarillo II, Verde III) vía GeoServer SNMB y ejecuta el cruce espacial Cobertura × OTBN"):
+                with st.spinner("Consultando OTBN Nacional (geo.ambiente.gob.ar) y calculando cruce Cobertura × OTBN..."):
+                    try:
+                        o_res = analyze_otbn_for_bbox(
+                            bbox=st.session_state.current_bbox,
+                            classification_context=st.session_state.classification_result
+                        )
+                        st.session_state.otbn_result = o_res
+                        st.session_state.map_version += 1
+                        if o_res.get("folium_bounds"):
+                            st.session_state.fit_bounds_target = o_res["folium_bounds"]
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Error al consultar capa OTBN: {e}")
 
     else:
         st.markdown(
@@ -838,21 +891,33 @@ with col_left:
     st.markdown("---")
 
     # =========================================================
-    # SECCIÓN 2: RESULTADOS, COBERTURAS E HIDROLOGÍA
+    # SECCIÓN 2: RESULTADOS, COBERTURAS, HIDROLOGÍA Y OTBN
     # =========================================================
-    st.subheader("2. 📊 Resultados, Coberturas e Hidrología")
+    st.subheader("2. 📊 Resultados: Coberturas, Hidrología y OTBN")
 
     has_class_res = st.session_state.classification_result is not None
     has_drain_res = st.session_state.get("drainage_result") is not None
+    has_otbn_res = st.session_state.get("otbn_result") is not None
 
-    if has_class_res and has_drain_res:
-        tab_cob, tab_drain = st.tabs(["🛰️ Coberturas del Suelo", "🌊 Hidrología y Red de Drenaje"])
-    elif has_class_res:
-        tab_cob, tab_drain = st.container(), None
-    elif has_drain_res:
-        tab_cob, tab_drain = None, st.container()
-    else:
-        tab_cob, tab_drain = None, None
+    active_tab_defs = []
+    if has_class_res:
+        active_tab_defs.append(("cob", "🛰️ Coberturas del Suelo"))
+    if has_drain_res:
+        active_tab_defs.append(("drain", "🌊 Hidrología y Drenaje"))
+    if has_otbn_res:
+        active_tab_defs.append(("otbn", "🌳 OTBN (Ley 26.331)"))
+
+    tab_map = {}
+    if len(active_tab_defs) > 1:
+        tab_objs = st.tabs([lbl for _, lbl in active_tab_defs])
+        for (key, _), t_obj in zip(active_tab_defs, tab_objs):
+            tab_map[key] = t_obj
+    elif len(active_tab_defs) == 1:
+        tab_map[active_tab_defs[0][0]] = st.container()
+
+    tab_cob = tab_map.get("cob")
+    tab_drain = tab_map.get("drain")
+    tab_otbn = tab_map.get("otbn")
 
     # ---------------------------------------------------------
     # TAB / SECCIÓN A: COBERTURAS DEL SUELO
@@ -1037,11 +1102,103 @@ with col_left:
             if d_mapa_path and os.path.exists(d_mapa_path):
                 st.image(d_mapa_path, caption="Topografía 3D, Líneas de Drenaje Hídrico y Zonificación de Pendientes Terrestres", use_container_width=True)
 
-    if not has_class_res and not has_drain_res:
+    # ---------------------------------------------------------
+    # TAB / SECCIÓN C: ORDENAMIENTO TERRITORIAL DE BOSQUES NATIVOS (OTBN)
+    # ---------------------------------------------------------
+    if tab_otbn is not None:
+        with tab_otbn:
+            o_res = st.session_state.otbn_result
+            col_oh1, col_oh2 = st.columns([1.5, 1.0])
+            col_oh1.markdown("#### 🌳 Ordenamiento Territorial de Bosques Nativos (Ley N.° 26.331)")
+            if col_oh2.button("🔄 Recalcular OTBN", use_container_width=True):
+                with st.spinner("Consultando GeoServer SNMB y recalculando cruce Cobertura × OTBN..."):
+                    try:
+                        o_res = analyze_otbn_for_bbox(
+                            bbox=st.session_state.current_bbox,
+                            classification_context=st.session_state.classification_result
+                        )
+                        st.session_state.otbn_result = o_res
+                        st.session_state.map_version += 1
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Error al recalcular OTBN: {e}")
+
+            meta_leg = o_res.get("metadatos_legales", {})
+            provs_txt = ", ".join(meta_leg.get("provincias") or []) or (o_res.get("ubicacion_administrativa", {}).get("provincia") or "Argentina")
+            fechas_txt = ", ".join(meta_leg.get("fechas_norma") or []) or "N/D"
+            autors_txt = ", ".join(meta_leg.get("autoridades") or []) or "Autoridad Provincial de Bosques"
+            st.info(
+                f"⚖️ **Jurisdicción OTBN:** {provs_txt} | **Fecha norma (`dct`):** `{fechas_txt}`\n\n"
+                f"🏛️ **Autoridad (`sag`):** {autors_txt} *(Fuente: `geo.ambiente.gob.ar` — `bosques:otbn_nacional`)*"
+            )
+
+            dist_o = o_res.get("distribucion_otbn", {})
+            oc1, oc2, oc3, oc4 = st.columns(4)
+            c1_d = dist_o.get("I", {"porcentaje": 0, "hectareas": 0})
+            c2_d = dist_o.get("II", {"porcentaje": 0, "hectareas": 0})
+            c3_d = dist_o.get("III", {"porcentaje": 0, "hectareas": 0})
+            c0_d = dist_o.get("Sin OTBN", {"porcentaje": 0, "hectareas": 0})
+            oc1.metric("🔴 Cat. I (Rojo)", f"{c1_d['porcentaje']}%", f"{c1_d['hectareas']:,.1f} ha")
+            oc2.metric("🟡 Cat. II (Amarillo)", f"{c2_d['porcentaje']}%", f"{c2_d['hectareas']:,.1f} ha")
+            oc3.metric("🟢 Cat. III (Verde)", f"{c3_d['porcentaje']}%", f"{c3_d['hectareas']:,.1f} ha")
+            oc4.metric("⬜ Sin OTBN", f"{c0_d['porcentaje']}%", f"{c0_d['hectareas']:,.1f} ha")
+
+            diag_o = o_res.get("diagnostico_otbn", {})
+            cruce_o = o_res.get("cruce_cobertura_otbn", {})
+            if diag_o:
+                fuente_cob_o = cruce_o.get("fuente_cobertura", "Referencia satelital 10m")
+                st.markdown(
+                    f"""
+                    <div style="background-color: #f8fafc; border: 1px solid #cbd5e1; border-left: 4px solid #15803d; padding: 8px 12px; border-radius: 6px; margin-top: 6px; margin-bottom: 8px; font-size: 0.87rem; color: #1e293b;">
+                        🌳 <b>Estado Zonificación:</b> <b>{diag_o.get('estado_zonificacion')}</b> (Alerta: <b>{diag_o.get('nivel_alerta')}</b>)<br>
+                        🛰️ <b>Fuente de Cobertura (Cruce 10m × OTBN):</b> <span style="color: #334155;">{fuente_cob_o}</span>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+
+                for mod in diag_o.get("modulos_activos", []):
+                    b_col = mod.get("color", "#15803d")
+                    st.markdown(
+                        f"""
+                        <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-left: 4px solid {b_col}; padding: 8px 12px; border-radius: 6px; margin-bottom: 8px; font-size: 0.86rem; color: #1e293b;">
+                            📌 <b>{mod.get('dominio')}</b> &nbsp;<span style="background-color: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 4px; padding: 1px 6px; font-size: 0.78rem; color: #334155;">{mod.get('nivel')}</span><br>
+                            <span style="color: #334155;">{mod.get('hallazgo')}</span><br>
+                            💡 <b>Recomendación:</b> {mod.get('recomendaciones')}
+                        </div>
+                        """,
+                        unsafe_allow_html=True
+                    )
+
+                if diag_o.get("nota_alcance_regulatorio"):
+                    st.caption(f"⚖️ **Alcance normativo:** {diag_o['nota_alcance_regulatorio']}")
+
+            if cruce_o.get("disponible") and cruce_o.get("matriz_cobertura_otbn"):
+                with st.expander("📊 Ver matriz cuantitativa Cobertura × OTBN (hectáreas)"):
+                    matriz_o = cruce_o["matriz_cobertura_otbn"]
+                    table_o = []
+                    for row in sorted(matriz_o.values(), key=lambda x: x["hectareas"], reverse=True):
+                        po = row.get("por_otbn", {})
+                        table_o.append({
+                            "Cobertura": row["nombre"].split("(")[0].strip(),
+                            "Total (ha)": f"{row['hectareas']:,.1f}",
+                            "% Área": f"{row['porcentaje_area']}%",
+                            "🔴 Rojo I (ha)": f"{po.get('I', {}).get('hectareas', 0.0):,.1f}",
+                            "🟡 Amarillo II (ha)": f"{po.get('II', {}).get('hectareas', 0.0):,.1f}",
+                            "🟢 Verde III (ha)": f"{po.get('III', {}).get('hectareas', 0.0):,.1f}",
+                            "⬜ Sin OTBN (ha)": f"{po.get('Sin OTBN', {}).get('hectareas', 0.0):,.1f}",
+                        })
+                    st.table(table_o)
+
+            o_mapa_path = o_res.get("mapa_generado")
+            if o_mapa_path and os.path.exists(o_mapa_path):
+                st.image(o_mapa_path, caption="Zonificación OTBN Nacional (Ley N.° 26.331) y Cruce Espacial por Cobertura del Suelo", use_container_width=True)
+
+    if not has_class_res and not has_drain_res and not has_otbn_res:
         if has_selection and can_classify:
-            st.info("💡 **Área delimitada lista.** Presioná **'⚙️ Clasificar Coberturas'** para identificar el uso del suelo o **'🌊 Red de Drenaje y Pendientes'** para modelar el escurrimiento hídrico.")
+            st.info("💡 **Área delimitada lista.** Presioná **'⚙️ Clasificar Coberturas'**, **'🌊 Drenaje y Pendientes'** o **'🌳 OTBN (Ley 26.331)'** para analizar el territorio.")
         else:
-            st.info("📍 Trazá un rectángulo sobre el mapa satelital para habilitar la clasificación de coberturas y la red de drenaje.")
+            st.info("📍 Trazá un rectángulo sobre el mapa satelital para habilitar la clasificación de coberturas, drenaje hídrico y zonificación OTBN.")
 
 # -------------------------------------------------------------
 # COLUMNA DERECHA: ASISTENTE (CONSULTAS Y RAG)
@@ -1070,15 +1227,18 @@ with col_right:
             if st.button("🛡️ Abrir Auditoría Harness & Seguridad", key="btn_audit_inline", use_container_width=True):
                 dialog_harness_seguridad()
 
-    q_col1, q_col2, q_col3, q_col4 = st.columns([1.05, 1.25, 1.05, 1.25])
+    q_col1, q_col2, q_col3 = st.columns([1.0, 1.15, 1.05])
+    q_col4, q_col5 = st.columns([1.0, 1.15])
     preset_query = None
     if q_col1.button("📉 Coberturas", use_container_width=True):
         preset_query = "Analizá y diagnosticá la distribución cuantitativa de coberturas obtenidas por el modelo en el área seleccionada, indicando superficies en hectáreas, porcentajes y su balance territorial (forestal, productivo, urbano e hídrico)."
     if q_col2.button("🌊 Drenaje y Pendiente", use_container_width=True):
         preset_query = "Analizá y diagnosticá la red de drenaje hídrico superficial, pendientes (%) y dirección de escurrimiento en el área seleccionada, evaluando los riesgos hídricos y recomendaciones pertinentes según el cruce espacial Cobertura × Pendiente."
-    if q_col3.button("🛠️ Stack y Código", use_container_width=True):
+    if q_col3.button("🌳 OTBN (Ley 26.331)", use_container_width=True):
+        preset_query = "Analizá la zonificación OTBN (Categorías I Rojo, II Amarillo y III Verde de la Ley N.° 26.331) y su cruce espacial con la cobertura del suelo en el área seleccionada, indicando superficies en hectáreas y alertas territoriales."
+    if q_col4.button("🛠️ Stack y Código", use_container_width=True):
         preset_query = "Explicá el stack tecnológico utilizado para construir esta app, su arquitectura modular y cómo intervenir o modificar el código según la guía del proyecto."
-    if q_col4.button("🛡️ Harness y Seguridad", use_container_width=True):
+    if q_col5.button("🛡️ Harness y Seguridad", use_container_width=True):
         preset_query = "Explicá cómo se integran el Agent Harness, la Ciberseguridad (Guardrails OWASP), el Sandbox y los Contenedores en la arquitectura de este proyecto."
 
     chat_container = st.container(height=450)
@@ -1157,6 +1317,23 @@ with col_right:
                 "analisis_agrohidrologico": d_raw.get("analisis_agrohidrologico"),
             }
             final_query += f" [Último Análisis de Drenaje Hídrico: {json.dumps(d_compact, ensure_ascii=False)}]"
+        if st.session_state.get("otbn_result"):
+            o_raw = st.session_state.otbn_result
+            cruce_o_raw = o_raw.get("cruce_cobertura_otbn", {}) or {}
+            o_compact = {
+                "fuente_otbn": o_raw.get("fuente_otbn"),
+                "superficie_total_ha": o_raw.get("superficie_total_ha"),
+                "distribucion_otbn": o_raw.get("distribucion_otbn"),
+                "metadatos_legales": o_raw.get("metadatos_legales"),
+                "cruce_cobertura_otbn": {
+                    "disponible": cruce_o_raw.get("disponible"),
+                    "fuente_cobertura": cruce_o_raw.get("fuente_cobertura"),
+                    "esquema_semantico": cruce_o_raw.get("esquema_semantico"),
+                    "indicadores_cruce": cruce_o_raw.get("indicadores_cruce"),
+                },
+                "diagnostico_otbn": o_raw.get("diagnostico_otbn"),
+            }
+            final_query += f" [Último Análisis OTBN: {json.dumps(o_compact, ensure_ascii=False)}]"
 
         st.session_state.chat_history.append({"role": "user", "content": query_to_run})
 

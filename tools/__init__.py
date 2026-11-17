@@ -9,6 +9,7 @@ from .rag_search import search_technical_rag
 from .visualizer import generate_visualization
 from .single_date_classifier import classify_single_date
 from .drainage import analyze_drainage_network
+from .otbn import analyze_otbn_zoning
 
 # Registro de herramientas disponibles para el Agente
 default_registry.register(Tool(
@@ -23,6 +24,13 @@ default_registry.register(Tool(
     description="Calcula la red de líneas de drenaje hídrico superficial, pendientes (%) en 6 rangos, dirección de flujo (acimut) y el cruce espacial píxel a píxel Cobertura x Pendiente (enmascarando agua) para emitir diagnóstico territorial por dominio (agropecuario, bosque/cuencas, urbano e interfaz urbano-forestal) a partir de Copernicus DEM 30m.",
     func=analyze_drainage_network,
     usage_example="Action: red_drenaje_hidrico | [-62.8, -30.7, -62.5, -30.5]"
+))
+
+default_registry.register(Tool(
+    name="consultar_otbn_bosques",
+    description="Consulta la capa oficial del Ordenamiento Territorial de Bosques Nativos (OTBN - Ley N.° 26.331) desde GeoServer SNMB (bosques:otbn_nacional), obtiene provincia, fecha de norma (dct) y calcula hectáreas en Categoría I (Rojo), II (Amarillo), III (Verde) y cruce espacial Cobertura x OTBN para un BBox.",
+    func=analyze_otbn_zoning,
+    usage_example="Action: consultar_otbn_bosques | [-62.30, -26.10, -62.10, -25.90]"
 ))
 
 default_registry.register(Tool(
@@ -67,6 +75,7 @@ __all__ = [
     "default_registry",
     "classify_land_cover_ai",
     "analyze_drainage_network",
+    "analyze_otbn_zoning",
     "search_satellite_catalog",
     "get_available_dates_for_roi",
     "classify_single_date",

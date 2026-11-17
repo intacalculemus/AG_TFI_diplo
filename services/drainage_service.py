@@ -290,6 +290,8 @@ def analyze_drainage_and_slope(
         arrowstyle="->",
         norm=Normalize(vmin=0, vmax=max(5.0, float(np.percentile(slope_pct, 95))))
     )
+    ax1.set_xlim(r_min_lon, r_max_lon)
+    ax1.set_ylim(r_min_lat, r_max_lat)
     
     cbar1 = fig.colorbar(strm.lines, ax=ax1, fraction=0.046, pad=0.04)
     cbar1.set_label("Intensidad / Pendiente de Flujo (%)", fontsize=9, fontweight="bold")
@@ -315,7 +317,17 @@ def analyze_drainage_and_slope(
     slope_img[mask_muy_fuerte] = 4
 
     cmap_slopes = matplotlib.colors.ListedColormap(["#2b83ba", "#abdda4", "#ffffbf", "#fdae61", "#d7191c"])
-    ax2.imshow(slope_img, extent=[r_min_lon, r_max_lon, r_min_lat, r_max_lat], cmap=cmap_slopes, origin="upper", alpha=0.9)
+    norm_slopes = matplotlib.colors.BoundaryNorm([-0.5, 0.5, 1.5, 2.5, 3.5, 4.5], cmap_slopes.N)
+    # slope_img proviene de slope_pct (calculada sobre dem_cart con fila 0 en el Sur), por eso origin="lower"
+    ax2.imshow(
+        slope_img,
+        extent=[r_min_lon, r_max_lon, r_min_lat, r_max_lat],
+        cmap=cmap_slopes,
+        norm=norm_slopes,
+        origin="lower",
+        interpolation="nearest",
+        alpha=0.9
+    )
     
     legend_patches = [
         mpatches.Patch(color="#2b83ba", label=f"< 1% Plano ({distribucion_pendientes['plana_menor_1pct']['porcentaje']}%)"),

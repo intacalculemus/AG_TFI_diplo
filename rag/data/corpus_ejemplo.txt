@@ -1,6 +1,22 @@
+[DOC_ID: AUTORES_Y_CREDITOS_PROYECTO]
+Título: Autoría, Equipo de Desarrollo, Dirección Académica, Créditos del Notebook Base ReAct e Institucionales de la App
+Contenido: La autoría, responsabilidades y créditos oficiales de la aplicación "TFI_Grupo_6_2026: Clasificación de Coberturas del suelo con Agentes IA" (repositorio AG_TFI_diplo) son los siguientes:
+1. Autor de Desarrollo, Implementación y Despliegue (asistido con IA):
+- Dr. Federico J. Letourneau (IFAB INTA - CONICET; Instituto de Investigaciones Forestales y Agropecuarias Bariloche).
+- Es el autor y responsable técnico de la programación, arquitectura de software, integración de teledetección satelital y modelado hidrológico, agente ReAct, ciberseguridad, harness y puesta en producción / despliegue de la aplicación.
+2. Desarrollo Conceptual:
+- El diseño conceptual de la solución es producto de la discusión e intercambio colaborativo en el Grupo 6 (2026) en el marco del Trabajo Final Integrador (TFI).
+3. Marco Académico y Dirección de la Diplomatura:
+- Diplomatura Universitaria en Ingeniería de Soluciones Basadas en Inteligencia Artificial (ISBIA) — Lidesia, Facultad de Ciencias Exactas, Físicas y Naturales (FCEFyN), Universidad Nacional de Córdoba (UNC).
+- Directora de la Diplomatura ISBIA: Dra. Laura Cecilia Díaz Dávila (LIDeSIA - FCEFyN - UNC).
+4. Antecedentes y Créditos del Notebook Base del Agente ReAct:
+- El módulo base del Agente ReAct tomó como referencia académica el notebook inicial desarrollado por los docentes Ing. Sandro Mauricio Comerci (LIDeSIA - FCEFyN) y Dra. Laura Cecilia Díaz Dávila (LIDeSIA - FCEFyN).
+5. Repositorio Oficial del Proyecto:
+- Código fuente: https://github.com/intacalculemus/AG_TFI_diplo.git
+
 [DOC_ID: ARQUITECTURA_Y_STACK_APP]
 Título: Arquitectura Técnica y Stack Tecnológico de la Aplicación
-Contenido: La aplicación "TFI_Grupo_6_2026: Clasificación de Coberturas del suelo con Agentes IA" fue diseñada en el marco de la Diplomatura Universitaria ISBIA - Lidesia - FCEFyN (UNC) como una plataforma modular de teledetección asistida por Inteligencia Artificial y Agentes ReAct para el Grupo_6_2026. Su arquitectura está compuesta por los siguientes componentes clave:
+Contenido: La aplicación "TFI_Grupo_6_2026: Clasificación de Coberturas del suelo con Agentes IA" fue concebida a partir de la discusión conceptual del Grupo 6 (2026) y desarrollada, implementada y desplegada (asistida con IA) por el Dr. Federico J. Letourneau (IFAB INTA - CONICET) en el marco de la Diplomatura Universitaria ISBIA - Lidesia - FCEFyN (UNC), dirigida por la Dra. Laura Cecilia Díaz Dávila. Su arquitectura modular de teledetección asistida por Inteligencia Artificial y Agentes ReAct está compuesta por los siguientes componentes clave:
 1. Capa de Frontend y Visualización Geoespacial:
 - Streamlit (Python): Framework reactivo para la interfaz web.
 - Folium & streamlit-folium: Visor de mapas satelitales multicapa con selector interactivo (Google Satélite Híbrido, Google Maps Calles/Rutas, Google Terreno/Relieve, Google Satélite Limpio, OpenStreetMap y Esri World Imagery), herramientas de dibujo vectorial (Draw) para delimitar polígonos/rectángulos y superposición de rásters clasificados (ImageOverlay) con georreferenciación exacta y persistencia de zoom/posición.

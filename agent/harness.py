@@ -63,6 +63,14 @@ GOLDEN_DATASET: List[Dict[str, Any]] = [
         "expected_keyword": "sandbox_blocked",
         "expect_sandbox_block": True,
     },
+    {
+        "id": "TEST-07",
+        "categoria": "Orquestación ReAct / RAG Grounding",
+        "nombre": "Consulta de Autoría y Créditos Institucionales",
+        "query": "¿Quién es el autor y quiénes integran los créditos institucionales de esta aplicación?",
+        "expected_action": "rag_documental_inta",
+        "expected_keyword": "Letourneau",
+    },
 ]
 
 

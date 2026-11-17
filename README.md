@@ -4,6 +4,13 @@
 *Diplomatura Universitaria en Ingeniería de Soluciones Basadas en Inteligencia Artificial (ISBIA) - Lidesia*  
 **FCEFyN - Universidad Nacional de Córdoba (UNC) / Grupo_6_2026**
 
+### Autoría y Créditos Institucionales
+- **Desarrollo, Implementación y Despliegue (asistido con IA):** Dr. Federico J. Letourneau *(IFAB INTA - CONICET)*
+- **Desarrollo Conceptual:** Producto de la discusión colaborativa del **Grupo 6 (2026)**
+- **Directora de la Diplomatura ISBIA:** Dra. Laura Cecilia Díaz Dávila *(LIDeSIA - FCEFyN - UNC)*
+- **Antecedente / Base del Agente ReAct:** Notebook base de los docentes **Ing. Sandro Mauricio Comerci** y **Dra. Laura Cecilia Díaz Dávila** *(LIDeSIA - FCEFyN)*
+- **Repositorio Oficial:** `https://github.com/intacalculemus/AG_TFI_diplo.git`
+
 ---
 
 ## 1. Descripción del Proyecto

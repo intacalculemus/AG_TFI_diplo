@@ -325,6 +325,22 @@ class GeoReActAgent:
 
         return str(data.get("resumen_ejecutivo", "Datos procesados correctamente."))
 
+    @staticmethod
+    def _requires_rag_grounding(query: str) -> bool:
+        """Determina si la consulta exige verificación previa obligatoria en el RAG documental."""
+        user_text = query.split("[BBox activo:")[0].strip().lower()
+        rag_keywords = (
+            "autor", "autores", "autoría", "autoria", "creador", "creadores",
+            "desarrollador", "desarrolladores", "desarrolló", "desarrollo",
+            "créditos", "creditos", "equipo", "directora", "director",
+            "diplomatura", "institucion", "institución", "letourneau", "comerci",
+            "davila", "dávila", "notebook", "arquitectura", "stack",
+            "tecnologias", "tecnologías", "harness", "ciberseguridad",
+            "sandbox", "contenedor", "docker", "owasp", "langchain",
+            "intervenir", "modificar", "código", "codigo", "quien hizo", "quién hizo",
+        )
+        return any(k in user_text for k in rag_keywords)
+
     def _mock_llm_reasoning(self, messages: List[Dict[str, str]]) -> str:
         """
         Simulador de inferencia dinámico:
@@ -347,7 +363,20 @@ class GeoReActAgent:
 
         # Paso inicial: razonar qué herramienta invocar según la intención
         if len(messages) == 2:
-            # 0. Si el usuario consulta sobre Harness, Ciberseguridad, Sandbox, Contenedores, Docker u OWASP
+            # 0. Si el usuario consulta sobre autoría, autores, equipo, dirección académica o créditos
+            if any(k in main_query_text for k in [
+                "autor", "autores", "autoría", "autoria", "creador", "creadores",
+                "desarrollador", "desarrolladores", "créditos", "creditos",
+                "quien hizo", "quién hizo", "quien desarrollo", "quién desarrolló",
+                "quien creo", "quién creó", "equipo", "directora", "diplomatura",
+                "letourneau", "comerci", "davila", "dávila", "ifab", "conicet"
+            ]):
+                return (
+                    "Thought: El usuario consulta sobre la autoría, desarrollo, créditos institucionales o dirección académica del proyecto. Consultaré la base documental RAG.\n"
+                    "Action: rag_documental_inta | autor autores autoria desarrollador equipo creditos directora"
+                )
+
+            # 0b. Si el usuario consulta sobre Harness, Ciberseguridad, Sandbox, Contenedores, Docker u OWASP
             if any(k in main_query_text for k in ["harness", "ciberseguridad", "cyberseguridad", "sandbox", "contenedor", "docker", "owasp", "guardrail", "seguridad"]):
                 return (
                     "Thought: El usuario consulta sobre la integración de Agent Harness, Ciberseguridad (Guardrails), Sandbox y Contenedores en la arquitectura del proyecto. Consultaré la base documental RAG.\n"
@@ -462,7 +491,11 @@ class GeoReActAgent:
         t_tok = sum(int(s.get("total_tokens", 0)) for s in trace)
         llm_ms = round(sum(float(s.get("llm_latency_ms", 0.0)) for s in trace), 1)
         tool_ms = round(sum(float(s.get("tool_latency_ms", 0.0)) for s in trace), 1)
-        tools_used = [s.get("action") for s in trace if s.get("action") and s.get("action") != "security_guardrail_block"]
+        tools_used = [
+            s.get("action")
+            for s in trace
+            if s.get("action") and s.get("action") not in ("security_guardrail_block", "harness_grounding_redirect")
+        ]
         mode = trace[-1].get("inference_mode", "Motor Local") if trace else "Motor Local"
 
         metrics = {
@@ -547,6 +580,45 @@ class GeoReActAgent:
 
             final_answer = parse_final_answer(llm_output)
             action = parse_action(llm_output)
+
+            # Guardrail de Grounding en Runtime Harness: impedir FINAL sin consulta RAG previa
+            has_rag_call = any(s.get("action") == "rag_documental_inta" for s in trace)
+            if (final_answer or not action) and not has_rag_call and self._requires_rag_grounding(query) and step < self.max_steps:
+                rag_tool = self.registry.get("rag_documental_inta")
+                if rag_tool:
+                    user_clean_q = query.split("[BBox activo:")[0].strip()
+                    tool_t0 = time.perf_counter()
+                    observation = rag_tool.run(user_clean_q)
+                    tool_ms = round((time.perf_counter() - tool_t0) * 1000, 1)
+                    step_ms = round((time.perf_counter() - step_t0) * 1000, 1)
+                    trace.append({
+                        "step": step,
+                        "thought_and_output": llm_output,
+                        "action": "rag_documental_inta",
+                        "input": user_clean_q,
+                        "observation": observation,
+                        "latency_ms": step_ms,
+                        "llm_latency_ms": llm_ms,
+                        "tool_latency_ms": tool_ms,
+                        "prompt_tokens": usage_info.get("prompt_tokens", 0),
+                        "completion_tokens": usage_info.get("completion_tokens", 0),
+                        "total_tokens": usage_info.get("total_tokens", 0),
+                        "inference_mode": usage_info.get("inference_mode", "LLM")
+                    })
+                    # Normalizar el último mensaje en el historial para mantener un ciclo ReAct limpio hacia el LLM
+                    messages[-1]["content"] = (
+                        f"Thought: Debo consultar la documentación oficial mediante rag_documental_inta antes de responder.\n"
+                        f"Action: rag_documental_inta | {user_clean_q}"
+                    )
+                    messages.append({
+                        "role": "user",
+                        "content": (
+                            f"Observation: {observation}\n"
+                            "Basate EXCLUSIVAMENTE en los hechos y nombres de esta Observation (sin inventar nombres, cargos ni secciones) "
+                            "y respondé ahora con 'Thought:' y 'FINAL:'."
+                        )
+                    })
+                    continue
 
             # Caso 1: El modelo finalizó
             if final_answer and not action:

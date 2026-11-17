@@ -2,7 +2,12 @@
 
 **Trabajo Final Integrador (TFI) — Grupo_6_2026**  
 **Diplomatura Universitaria en Ingeniería de Soluciones Basadas en Inteligencia Artificial (ISBIA) - Lidesia**  
-**Facultad de Ciencias Exactas, Físicas y Naturales (FCEFyN) — Universidad Nacional de Córdoba (UNC) / INTA**
+**Facultad de Ciencias Exactas, Físicas y Naturales (FCEFyN) — Universidad Nacional de Córdoba (UNC) / IFAB INTA - CONICET**
+
+* **Desarrollo, Implementación y Despliegue (asistido con IA):** Dr. Federico J. Letourneau *(IFAB INTA - CONICET)*
+* **Desarrollo Conceptual:** Discusión colaborativa del *Grupo_6_2026*
+* **Directora de la Diplomatura ISBIA:** Dra. Laura Cecilia Díaz Dávila *(LIDeSIA - FCEFyN - UNC)*
+* **Base del Agente ReAct:** Adaptado a partir del notebook base de **Ing. Sandro Mauricio Comerci** y **Dra. Laura Cecilia Díaz Dávila** *(LIDeSIA - FCEFyN)*
 
 ---
 

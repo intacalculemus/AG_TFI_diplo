@@ -9,8 +9,9 @@ _kb = SimpleKnowledgeBase()
 
 def search_technical_rag(tool_input: str) -> str:
     """
-    Busca información en manuales de INTA, leyes de bosques (Ley 26.331) y reportes de zonificación.
-    Input: consulta en texto libre (ej: 'categoría rojo ley de bosques', 'comportamiento ndvi chaco seco').
+    Busca información en la documentación oficial del proyecto (autoría, créditos institucionales,
+    dirección académica, arquitectura del stack, ciberseguridad y guías metodológicas/INTA).
+    Input: consulta en texto libre (ej: 'autor autores creditos proyecto', 'arquitectura stack').
     """
     query = tool_input.strip()
     if not query:

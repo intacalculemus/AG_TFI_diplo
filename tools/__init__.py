@@ -49,9 +49,9 @@ default_registry.register(Tool(
 
 default_registry.register(Tool(
     name="rag_documental_inta",
-    description="Busca en la base documental del proyecto: arquitectura y stack tecnológico de la aplicación, guías de intervención/modificación del código, y manuales metodológicos sobre índices espectrales.",
+    description="Busca en la base documental oficial del proyecto: autoría, equipo, dirección académica, créditos institucionales, arquitectura y stack tecnológico de la aplicación, guías de intervención/modificación del código y manuales metodológicos sobre índices espectrales.",
     func=search_technical_rag,
-    usage_example="Action: rag_documental_inta | arquitectura stack tecnologias funcionamiento intervenir"
+    usage_example="Action: rag_documental_inta | autor autores autoria desarrollador creditos arquitectura stack"
 ))
 
 default_registry.register(Tool(

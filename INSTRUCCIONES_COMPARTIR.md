@@ -1,7 +1,8 @@
 # 🚀 Guía para Compartir y Ejecutar la Aplicación
 
 **Proyecto:** "TFI_Grupo_6_2026: Clasificación de Coberturas del suelo con Agentes IA"  
-**Ámbito:** Diplomatura Universitaria ISBIA - Lidesia - FCEFyN (UNC) | **Grupo_6_2026**
+**Ámbito:** Diplomatura Universitaria ISBIA - Lidesia - FCEFyN (UNC) | **Directora:** Dra. Laura Cecilia Díaz Dávila  
+**Desarrollo, Implementación y Despliegue (asistido con IA):** Dr. Federico J. Letourneau *(IFAB INTA - CONICET)* | **Desarrollo Conceptual:** Grupo 6 (2026)
 
 ---
 

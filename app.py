@@ -4,7 +4,9 @@ Soporta:
 1. Modelo de IA Deep Learning: ESA WorldCover (10m de resolución - 8+ clases de cobertura)
 2. Umbralización Radiométrica: NDVI Sentinel-2 L2A (Bandas B04 y B08 a 10m)
 Superposición Georreferenciada Directa sobre el Mapa (ImageOverlay)
-Diplomatura Universitaria ISBIA - Lidesia - UNC / Grupo_6_2026
+Desarrollo, implementación y despliegue (asistido con IA): Dr. Federico J. Letourneau (IFAB INTA - CONICET)
+Desarrollo conceptual: Discusión colaborativa del Grupo 6 (2026)
+Diplomatura Universitaria ISBIA - Lidesia - FCEFyN (UNC) | Directora: Dra. Laura Cecilia Díaz Dávila
 """
 import streamlit as st
 
@@ -29,14 +31,26 @@ from shapely.geometry import shape
 
 # Recarga defensiva ante hot-reload en caliente de Streamlit Cloud tras un git push
 import services.real_satellite_service as _rss_mod
-if not hasattr(_rss_mod, "discover_available_sources") or not hasattr(_rss_mod, "IO_LULC_CLASSES"):
+import rag.vector_store as _rag_vs_mod
+import agent.core as _agent_core_mod
+if (
+    not hasattr(_rss_mod, "discover_available_sources")
+    or not hasattr(_rss_mod, "IO_LULC_CLASSES")
+    or not hasattr(_rag_vs_mod, "_normalize_text")
+    or not hasattr(_agent_core_mod.GeoReActAgent, "_requires_rag_grounding")
+):
     for _mod_name in [
         "config",
         "services.real_satellite_service",
+        "rag.vector_store",
         "tools.base",
         "tools.land_cover",
         "tools.geo_catalog",
+        "tools.rag_search",
+        "tools",
+        "agent.prompts",
         "agent.core",
+        "agent.harness",
     ]:
         if _mod_name in sys.modules:
             importlib.reload(sys.modules[_mod_name])
@@ -308,7 +322,7 @@ def dialog_harness_seguridad():
 
     st.markdown("---")
     st.markdown("#### 🧪 Banco de Pruebas Automatizado (*Agent Evaluation Harness*)")
-    st.caption("Ejecuta en vivo el *Golden Dataset* (6 casos de prueba) para verificar selección de herramientas, cumplimiento del protocolo ReAct, bloqueo de *Prompt Injection* y frenado del *Sandbox* ante sobrecarga de memoria o *Path Traversal*.")
+    st.caption("Ejecuta en vivo el *Golden Dataset* (7 casos de prueba) para verificar selección de herramientas, grounding RAG, cumplimiento del protocolo ReAct, bloqueo de *Prompt Injection* y frenado del *Sandbox* ante sobrecarga de memoria o *Path Traversal*.")
 
     if st.button("▶️ Ejecutar Batería de Pruebas (Eval Harness & Seguridad)", type="primary", use_container_width=True):
         with st.spinner("Ejecutando Golden Dataset sobre el Agente y las capas de Seguridad/Sandbox..."):
@@ -344,7 +358,7 @@ last_update_str = datetime.datetime.fromtimestamp(app_mtime).strftime("%d/%m/%Y 
 MAR_CHIQUITA_CENTER = [-30.60, -62.65]
 MAR_CHIQUITA_ZOOM = 9
 
-if "agent" not in st.session_state:
+if "agent" not in st.session_state or not hasattr(st.session_state.agent, "_requires_rag_grounding"):
     st.session_state.agent = GeoReActAgent(registry=default_registry)
 elif getattr(st.session_state.agent, "last_error", None) or "Qwen/Qwen" in str(getattr(st.session_state.agent, "model", "")) or "llama-3.3" in str(getattr(st.session_state.agent, "model", "")):
     # Re-inicializar si se actualizó el archivo .env a Groq
@@ -466,15 +480,18 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### 📚 Acerca del Proyecto")
     st.markdown(
-        "- **Diplomatura:** ISBIA - Lidesia - UNC\n"
-        "- **Grupo:** 6 (2026)\n"
+        "- **Desarrollo, Implementación y Despliegue (asistido con IA):** Dr. Federico J. Letourneau *(IFAB INTA - CONICET)*\n"
+        "- **Desarrollo Conceptual:** Discusión colaborativa — Grupo 6 (2026)\n"
+        "- **Diplomatura:** ISBIA - Lidesia - FCEFyN (UNC)\n"
+        "- **Directora de la Diplomatura:** Dra. Laura Cecilia Díaz Dávila\n"
+        "- **Base Agente ReAct:** Notebook base de Ing. Sandro Mauricio Comerci y Dra. Laura Cecilia Díaz Dávila *(LIDeSIA - FCEFyN)*\n"
         "- **Datos:** STAC Microsoft Planetary Computer\n"
         "- **Modelos:** ESA WorldCover 10m, Esri Annual LULC 10m & Copernicus DEM 30m"
     )
 
 # Encabezado y Subtítulo enriquecido con Stack Tecnológico y Timestamp de Compilación
 st.title("🛰️ TFI_Grupo_6_2026: Clasificación de Coberturas del suelo con Agentes IA")
-st.caption(f"⏱️ **Última compilación / actualización:** `{last_update_str}` | Diplomatura Universitaria ISBIA - Lidesia - FCEFyN (UNC) / Grupo_6_2026")
+st.caption(f"⏱️ **Última compilación / actualización:** `{last_update_str}` | Desarrollo e implementación: **Dr. Federico J. Letourneau (IFAB INTA - CONICET)** | Desarrollo conceptual: **Grupo 6 (2026)** | Diplomatura ISBIA - Lidesia - FCEFyN (UNC) — Dir. **Dra. Laura Cecilia Díaz Dávila**")
 st.caption("🧩 **Arquitectura & Stack:** **Frontend:** Streamlit + Folium (GIS) | **Datos & Teledetección:** STAC API (Planetary Computer) & Rasterio (COGs) | **Agente Inteligente:** ReAct (*Reasoning + Acting*) + RAG Documental Local | **Modelos:** ESA WorldCover 10m (Deep Learning CNN), Sentinel-2 MSI & Copernicus DEM 30m (Hidrología)")
 
 col_left, col_right = st.columns([1.22, 1.0], gap="large")

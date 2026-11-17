@@ -29,33 +29,33 @@ El diseño sigue el principio de **Separación de Responsabilidades (*Separation
 
 ```mermaid
 flowchart TD
-    User(["👤 Usuario / Profesional Agroambiental"]) -->|"HTTPS (Consultas y Polígonos)"| UI["🖥️ Frontend Web: Streamlit + Folium (app.py)"]
+    User(["👤 Usuario / Profesional Territorial y Agroambiental"]) -->|"HTTPS (Consultas y Polígonos)"| UI["🖥️ Frontend Web: Streamlit + Folium (app.py)"]
 
     subgraph CloudContainer["📦 CONTENEDOR AISLADO (Streamlit Cloud Linux Container / Docker)"]
         direction TB
         Secrets[("🔑 Bóveda de Secretos\n(st.secrets / .env)")]
-        UI --> InputGuard["🛡️ CAPA 1: CIBERSEGURIDAD (Input Guardrails)\n• Detección de Prompt Injection\n• Filtro de Dominio Agroambiental"]
+        UI --> InputGuard["🛡️ CAPA 1: CIBERSEGURIDAD (Input Guardrails)\n• Detección de Prompt Injection (OWASP LLM01)\n• Límite texto usuario / delimitadores ReAct"]
         
-        InputGuard -->|"Consulta Validada"| Harness["⚙️ CAPA 2: AGENT HARNESS (agent/core.py)\n• Orquestador de Bucle ReAct (max_steps)\n• Parser Determinista (agent/parser.py)\n• Telemetría, Trazabilidad y Fallbacks"]
+        InputGuard -->|"Consulta Validada"| Harness["⚙️ CAPA 2: AGENT HARNESS (agent/core.py)\n• Orquestador de Bucle ReAct (max_steps = 7)\n• Parser Determinista (agent/parser.py)\n• Telemetría, Trazabilidad y Fallbacks"]
         
         Secrets -.->|"Inyección Segura en Memoria"| Harness
         
-        Harness <-->|"Thought / Action"| LLM_Client["🧠 Conector LLM\n(HuggingFace Router / OpenAI API)"]
+        Harness <-->|"Thought / Action"| LLM_Client["🧠 Conector Multi-LLM\n(Groq / HuggingFace Router / OpenAI API)"]
         
-        Harness -->|"Invocación de Tool"| AppSandbox["🔒 CAPA 3: SANDBOX DE APLICACIÓN (tools/base.py)\n• Validación de Esquemas y Coordenadas (BBox)\n• Cuota Máxima de Superficie (< 50.000 ha)\n• Timeout de Ejecución y Filesystem Jail (/outputs)"]
+        Harness -->|"Invocación de Tool"| AppSandbox["🔒 CAPA 3: SANDBOX DE APLICACIÓN (tools/base.py)\n• Validación de Esquemas y Coordenadas (BBox)\n• Cuota Máxima de Superficie (< 100.000 ha)\n• Timeout (45s) y Filesystem Jail (/outputs)"]
         
-        AppSandbox --> Tools["🛠️ Registro Modular de Herramientas\n• clasificador_ia_worldcover\n• procesar_escena_sentinel2\n• series_temporales_ndvi\n• rag_documental_inta"]
+        AppSandbox --> Tools["🛠️ Registro Modular de Herramientas (7 Tools)\n• clasificador_ia_worldcover / red_drenaje_hidrico\n• clasificar_fecha_individual / catalogo_satelital\n• series_temporales_ndvi / rag_documental_inta / visualizar"]
         
         Tools -->|"Observation (JSON)"| Harness
         Harness --> OutputGuard["🛡️ CAPA 1: CIBERSEGURIDAD (Output Guardrails)\n• Sanitización de Errores y Prevención de Fuga de Claves"]
         OutputGuard --> UI
     end
 
-    Tools <-->|"Lectura Parcial HTTP (Windowed COG)"| STAC[("🛰️ Microsoft Planetary Computer\n(ESA WorldCover & Sentinel-2)")]
+    Tools <-->|"Lectura Parcial HTTP (Windowed COG)"| STAC[("🛰️ Microsoft Planetary Computer\n(WorldCover, IO-LULC, Sentinel-2, Copernicus DEM)")]
     Tools <-->|"REST API"| Georef[("🗺️ API Georef IGN Argentina\n/ OpenStreetMap")]
 ```
 
-**Ventaja de Mantenibilidad:** Gracias a este diseño desacoplado, si el equipo modifica el modelo de lenguaje (`Qwen2.5-72B`, `GPT-4o-mini`), ajusta los umbrales de NDVI en `services/real_satellite_service.py` o amplía la base documental en `rag/data/corpus_ejemplo.txt`, **las capas de Ciberseguridad, Sandbox, Harness y Contenedor permanecen intactas sin requerir recodificación**.
+**Ventaja de Mantenibilidad:** Gracias a este diseño desacoplado, si el equipo modifica el modelo de lenguaje (`openai/gpt-oss-120b`, `Qwen2.5-72B`, `GPT-4o-mini`), ajusta umbrales en `services/real_satellite_service.py`, amplía reglas territoriales de cruce espacial en `services/drainage_service.py` o incorpora normativas (como Ley N.° 26.331 e IUF) en `rag/data/corpus_ejemplo.txt`, **las capas de Ciberseguridad, Sandbox, Harness y Contenedor permanecen intactas sin requerir recodificación**.
 
 ---
 
@@ -132,8 +132,8 @@ La siguiente tabla demuestra la robustez de la arquitectura frente a la evoluci�
 | Evolución / Cambio en el Proyecto | Impacto en Ciberseguridad (Guardrails) | Impacto en Sandbox de Herramientas | Impacto en Agent Harness | Impacto en Contenedor / Streamlit Cloud |
 | :--- | :---: | :---: | :---: | :---: |
 | **Cambio de Modelo LLM** (ej. de `Qwen 2.5` a `GPT-4o` o `Llama 3.3`) | **Ninguno** (0 cambios) | **Ninguno** (0 cambios) | **Ninguno:** Se ejecuta el *Eval Harness* existente para comparar el rendimiento del nuevo modelo. | **Ninguno:** Solo se actualiza la variable `MODEL_ID` en `st.secrets`. |
-| **Ajuste de Algoritmos Satelitales** (ej. cambiar umbral NDVI o sumar índice hídrico NDWI) | **Ninguno** (0 cambios) | **Ninguno:** Los límites de área y *timeout* se aplican automáticamente. | **Ninguno** (0 cambios) | **Ninguno:** Streamlit Cloud actualiza el código automáticamente vía `git push`. |
-| **Ampliación del Corpus Documental RAG** (nuevas normativas o guías en `corpus_ejemplo.txt`) | **Ninguno** (0 cambios) | **Ninguno** (0 cambios) | **Mínimo (Opcional):** Se pueden sumar preguntas nuevas al *Golden Dataset* de evaluación. | **Ninguno** (0 cambios) |
+| **Ajuste de Algoritmos o Cruce Espacial** (ej. umbrales NDVI, cruce `Cobertura × Pendiente` o diagnóstico multi-dominio en `services/`) | **Ninguno** (0 cambios) | **Ninguno:** Los límites de área (`100.000 ha`) y *timeout* (`45s`) se aplican automáticamente. | **Ninguno** (0 cambios) | **Ninguno:** Streamlit Cloud actualiza el código automáticamente vía `git push`. |
+| **Ampliación del Corpus Documental RAG** (ej. marco normativo Ley 26.331 / IUF en `corpus_ejemplo.txt`) | **Ninguno** (0 cambios) | **Ninguno** (0 cambios) | **Mínimo (Opcional):** Se pueden sumar preguntas nuevas al *Golden Dataset* (actualmente 7 casos). | **Ninguno** (0 cambios) |
 | **Incorporación de una Nueva Herramienta** (ej. consulta de precipitaciones históricas) | **Automático:** Hereda la validación central de `Tool.run()`. | **Automático:** Hereda el *timeout* y control de excepciones de la clase `Tool`. | **Mínimo:** Se agrega 1 caso de prueba al *Eval Harness* para validar su invocación. | **Ninguno** (salvo que requiera una nueva librería en `requirements.txt`). |
 
 ---

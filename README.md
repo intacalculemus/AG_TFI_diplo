@@ -15,14 +15,15 @@
 
 ## 1. Descripción del Proyecto
 
-Esta aplicación es una plataforma interactiva de teledetección asistida por Inteligencia Artificial y Agentes ReAct (*Reasoning + Acting*), diseñada como protocolo para profesionales de las áreas agronómica, hídrica y ambiental:
+Esta aplicación es una plataforma interactiva de teledetección y modelado hidro-territorial asistida por Inteligencia Artificial y Agentes ReAct (*Reasoning + Acting*), diseñada para profesionales de las áreas **agronómica, forestal, urbana, hídrica y ambiental**:
 
-1. **Modelos de IA de Cobertura Terrestre (ESA WorldCover 10m - Deep Learning):** Clasificación multiclase en 8+ categorías taxonómicas a 10 metros de resolución espacial (*Bosque Nativo/Árboles, Cultivos Agrícolas, Matorral, Pastizales, Suelo Desnudo, Construido, Agua, Humedales*).
-2. **Procesador Radiométrico Sentinel-2 L2A (10m) con Selector Histórico:** Consulta en tiempo real de escenas históricas (años 2020 a 2024), filtrado por nubosidad y análisis espectral con bandas B04 (Rojo) y B08 (NIR) vía STAC y Cloud-Optimized GeoTIFFs (COGs).
-3. **Visor Cartográfico Multicapa con Georreferenciación Estable:** Selector de capas base (Google Híbrido, Google Maps Calles, Google Terreno, Google Satélite Puro, OpenStreetMap, Esri World Imagery), herramientas de dibujo vectorial (Draw) y persistencia de encuadre territorial.
-4. **Geocodificación Administrativa Oficial en Argentina:** Detección automática de Provincia, Departamento/Partido y Municipio (API Georef IGN Argentina con fallback a OSM).
-5. **Asistente (Consultas y RAG):** Diálogo interactivo para interpretar diagnósticos cuantitativos de cobertura (hectáreas y porcentajes exactos) y consultar la documentación del stack tecnológico y guías de intervención.
-6. **Capas de Ingeniería de IA (Agent Harness, Ciberseguridad OWASP, Sandbox y Contenedores):** Orquestación con telemetría y banco de evaluación automatizado (*Golden Dataset*), Guardrails de entrada/salida, aislamiento de recursos satelitales y contenerización con Docker.
+1. **Modelos de IA de Cobertura Terrestre (10m - Deep Learning):** Clasificación multiclase mediante **ESA WorldCover 10m** y **Esri / Impact Observatory 10m Annual LULC** (*Bosque Nativo/Árboles, Cultivos Agrícolas, Matorral, Pastizales, Suelo Desnudo, Área Urbana/Construida, Agua, Humedales, Nieve/Hielo*), con cálculo métrico de hectáreas ajustado geodésicamente por latitud.
+2. **Procesador Radiométrico Sentinel-2 L2A (10m) con Selector Dinámico:** Consulta en tiempo real de escenas históricas (desde 2017 hasta la actualidad), filtrado por nubosidad y análisis espectral con bandas B04 (Rojo) y B08 (NIR) vía STAC y Cloud-Optimized GeoTIFFs (COGs).
+3. **Modelado Hidrológico y Cruce Espacial `Cobertura × Pendiente` (Copernicus DEM 30m):** Cálculo de red de drenaje superficial (*Streamlines*), dirección de flujo, 6 rangos de pendiente terrestre con **enmascaramiento de cuerpos de agua**, clasificación automática de **Régimen Territorial** (*Agropecuario, Forestal de Montaña/Llanura, Urbano/Pie de Monte, Mixto, Estepa*) y módulos de diagnóstico pertinentes (*Protección de Cuencas y Ley N.° 26.331*, *Riesgo Hídrico Urbano-Aluvional*, *Interfaz Urbano-Forestal / Ley N.° 26.815* y *Manejo Agrícola*).
+4. **Visor Cartográfico Multicapa con Georreferenciación Estable:** Capa base satelital híbrida con superposición de coberturas y líneas de drenaje (`ImageOverlay`), herramientas de dibujo vectorial (`Draw`) y persistencia de encuadre territorial.
+5. **Geocodificación Administrativa Oficial en Argentina:** Detección automática de Provincia, Departamento/Partido y Municipio (API Georef IGN Argentina con fallback a OSM) y buscador de localidades.
+6. **Asistente (Consultas y RAG):** Diálogo interactivo para interpretar métricas cuantitativas reales, matrices de cruce espacial y normativas territoriales, además de consultar la documentación del stack tecnológico y guías de intervención.
+7. **Capas de Ingeniería de IA (Agent Harness, Ciberseguridad OWASP, Sandbox y Contenedores):** Orquestación con telemetría y banco de evaluación automatizado (*Golden Dataset*, 7 casos), Guardrails de entrada/salida, aislamiento de recursos satelitales y contenerización con Docker.
 
 ---
 
@@ -38,6 +39,8 @@ AG_TFI_diplo/
 ├── requirements.txt            # Dependencias completas del proyecto
 ├── Dockerfile                  # Contenedor endurecido (non-root appuser + GDAL)
 ├── docker-compose.yml          # Orquestación con límites de RAM/CPU y Sandbox de volúmenes
+├── INFORME_INTEGRAL_TFI_ISBIA.md   # Informe Técnico y Arquitectónico Integral (Markdown)
+├── INFORME_INTEGRAL_TFI_ISBIA.docx # Informe Integral del TFI listo para entrega (Word)
 ├── INFORME_ARQUITECTONICO_TFI.md   # Informe Arquitectónico de Ingeniería de IA (Markdown)
 ├── INFORME_ARQUITECTONICO_TFI.docx # Informe Arquitectónico listo para entrega (Word)
 ├── ejecutar_app.bat            # Iniciador automático en 1 clic (Windows)
@@ -45,33 +48,33 @@ AG_TFI_diplo/
 ├── INSTRUCCIONES_COMPARTIR.md  # Guía para compartir vía Google Drive
 ├── README.md                   # Documentación técnica general
 │
-├── services/                   # Motores de IA y Conexión Satelital
+├── services/                   # Motores Satelitales, Hidrológicos y Geocodificación
 │   ├── __init__.py
-│   ├── real_satellite_service.py # Inferencia ESA WorldCover 10m y streaming Sentinel-2 COG
-│   ├── drainage_service.py     # Modelado hidrológico y pendientes (Copernicus DEM 30m)
+│   ├── real_satellite_service.py # Inferencia ESA WorldCover / Esri LULC 10m, Sentinel-2 COG y caché .npz
+│   ├── drainage_service.py     # Modelado DEM 30m, cruce espacial Cobertura × Pendiente y diagnóstico multi-dominio
 │   └── geo_admin_service.py    # Geocodificación inversa (IGN Georef Argentina)
 │
 ├── agent/                      # Núcleo del Asistente ReAct, Harness y Ciberseguridad
 │   ├── core.py                 # GeoReActAgent + Runtime Harness con telemetría
 │   ├── security.py             # Guardrails OWASP LLM (Prompt Injection, Secretos y Sandbox)
 │   ├── harness.py              # Evaluation Harness automatizado (Golden Dataset)
-│   ├── prompts.py              # System Prompt especializado para Grupo_6_2026
+│   ├── prompts.py              # System Prompt territorialmente neutral para Grupo_6_2026
 │   └── parser.py               # Extracción determinista de herramientas y respuestas
 │
 ├── tools/                      # Herramientas modulares con Sandbox de Ejecución
 │   ├── base.py                 # Dataclass Tool (con Timeout y validación Sandbox) y ToolRegistry
-│   ├── land_cover.py           # Invocación de modelo IA ESA WorldCover
-│   ├── drainage.py             # Herramienta de red de drenaje y erosión hídrica
+│   ├── land_cover.py           # Invocación de modelos IA ESA WorldCover / Esri LULC 10m
+│   ├── drainage.py             # Herramienta de red de drenaje, pendientes y cruce espacial
 │   ├── geo_catalog.py          # Consulta al catálogo satelital STAC
 │   ├── single_date_classifier.py # Procesamiento de bandas B04/B08 Sentinel-2
 │   ├── timeseries.py           # Series temporales de NDVI y detección de tendencias
-│   ├── rag_search.py           # Búsqueda RAG en el stack y guías técnicas
+│   ├── rag_search.py           # Búsqueda RAG en stack, guías técnicas y marco normativo
 │   └── visualizer.py           # Generación de gráficos temporales
 │
 ├── rag/                        # Base de Conocimiento Documental (RAG)
 │   ├── vector_store.py         # Motor de recuperación documental local
 │   └── data/
-│       └── corpus_ejemplo.txt  # Documentación del stack, seguridad, harness y métodos
+│       └── corpus_ejemplo.txt  # Corpus técnico (10 bloques [DOC_ID]: stack, seguridad, harness, cuencas/Ley 26.331/IUF)
 │
 └── outputs/                    # Rásters clasificados y mapas generados (Filesystem Jail)
 ```
@@ -108,9 +111,9 @@ chmod +x ejecutar_app.sh
 ---
 
 ## 4. Flujo de Uso
-1. **Delimitar el Área de Interés:** Dibujar un rectángulo o polígono sobre el mapa satelital.
-2. **Seleccionar el Motor y la Fecha:**
-   - **ESA WorldCover 10m:** Seleccionar año de referencia (2021 / 2020) y presionar *Ejecutar Modelo de IA*.
-   - **Sentinel-2 L2A (NDVI):** Seleccionar año histórico, filtrar nubosidad, elegir la escena de la lista y presionar *Procesar Bandas*.
-3. **Analizar los Resultados:** Visualizar las métricas en hectáreas, la tabla de coberturas y la capa proyectada directamente sobre el mapa sin perder el zoom ni la extensión territorial.
-4. **Consultar al Asistente:** Utilizar los botones de consulta rápida (*Diagnóstico de Coberturas* o *Stack y Arquitectura*) o formular preguntas personalizadas.
+1. **Delimitar el Área de Interés:** Buscar una localidad argentina vía IGN Georef o dibujar un rectángulo sobre el mapa satelital.
+2. **Clasificar Coberturas del Suelo (10m):**
+   - **Modelo IA (Esri Annual LULC / ESA WorldCover):** Seleccionar fuente y año disponible en STAC y ejecutar la clasificación multiclase.
+   - **Sentinel-2 L2A (NDVI):** Seleccionar año o rango de fechas (2017–presente), filtrar nubosidad, elegir la escena y procesar las bandas B04/B08.
+3. **Modelar Red de Drenaje y Cruce Espacial `Cobertura × Pendiente` (30m):** Presionar *🌊 Red de Drenaje y Pendientes* para calcular escurrimiento, pendientes terrestres en 6 rangos (con agua enmascarada), matriz de tabulación cruzada, cartografía funcional y diagnóstico adaptado al régimen territorial (agrícola, forestal/cuencas, urbano o IUF).
+4. **Consultar al Asistente:** Utilizar los botones de consulta rápida (*Coberturas*, *Drenaje y Pendiente*, *Stack y Código*, *Harness y Seguridad*) o formular preguntas personalizadas incluyendo criterios normativos (Ley N.° 26.331 / IUF).

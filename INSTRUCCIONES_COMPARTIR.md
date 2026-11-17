@@ -108,9 +108,9 @@ Si prefieren ejecutarlo manualmente por línea de comandos:
 
 ## 🛠️ ¿Qué funcionalidades van a encontrar tus compañeros?
 
-- **Visor Satelital Multicapa:** Google Satélite Híbrido, Google Maps Calles, Google Terreno, Google Satélite Puro, OpenStreetMap y Esri Satélite.
-- **Geocodificación Argentina Automática:** Muestra la Provincia, Departamento y Municipio oficial (IGN Georef) del área seleccionada.
-- **Doble Motor de Clasificación:**
-  1. **Modelo IA ESA WorldCover (10m):** Mosaico anual multitemporal (Sentinel-2 + Sentinel-1 SAR) en 8+ clases taxonómicas.
-  2. **Umbralización NDVI Sentinel-2 L2A:** Búsqueda histórica de escenas (2020–2024) y cálculo multiespectral a 10m.
-- **Asistente ReAct y RAG:** Razonamiento sobre métricas cuantitativas reales y consultas sobre la arquitectura del código.
+- **Visor Satelital y Buscador IGN Georef:** Mapa interactivo Google Híbrido con dibujo vectorial (`Draw`), superposición de rásters georreferenciados y detección automática de Provincia, Departamento y Municipio en Argentina.
+- **Doble Motor de Clasificación (10m):**
+  1. **Modelos IA Deep Learning (ESA WorldCover y Esri Annual LULC):** Clasificación multiclase (bosques, cultivos, área urbana, matorral, pastizal, agua, humedales) con cálculo métrico ajustado por latitud.
+  2. **Umbralización NDVI Sentinel-2 L2A:** Búsqueda histórica dinámica de escenas (2017–presente) y cálculo multiespectral B04/B08 a 10m.
+- **Hidrología y Cruce Espacial `Cobertura × Pendiente` (Copernicus DEM 30m):** Red de drenaje superficial, pendientes terrestres en 6 rangos (enmascarando cuerpos de agua) y diagnóstico adaptado al régimen territorial (agrícola, protección de cuencas/bosques bajo Ley N.° 26.331, riesgo hídrico urbano e interfaz urbano-forestal).
+- **Asistente ReAct y RAG:** Razonamiento cuantitativo sobre las coberturas y el cruce espacial, consultas normativas y auditoría de *Harness & Seguridad*.
